@@ -166,3 +166,18 @@ export {
   lazyLoadImage,
   createImagePreloader,
 } from './lib/utils/prefetch.js';
+
+export {
+  ActionProvider,
+  useActionState,
+  Form,
+  useSubmit,
+  LoadingOverlay,
+  PendingUI,
+} from './lib/hooks/client-actions.js';
+
+export {
+  usePending,
+  useNavigation,
+  usePrefetch,
+} from './lib/hooks/navigation.js';
