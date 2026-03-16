@@ -147,3 +147,22 @@ export {
   clearCacheData,
   ServerFunctionProvider,
 } from './lib/hooks/use-data.js';
+
+export {
+  createServerCache,
+  cacheAsync,
+  getCached,
+  setCached,
+  invalidateCache,
+} from './lib/utils/server-cache.js';
+
+export {
+  prefetch,
+  preload,
+  preloadFont,
+  preloadImage,
+  prefetchModule,
+  eagerPreload,
+  lazyLoadImage,
+  createImagePreloader,
+} from './lib/utils/prefetch.js';
