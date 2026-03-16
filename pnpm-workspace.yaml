@@ -1,0 +1,6 @@
+packages:
+  - 'packages/*'
+  - '!**/dist'
+preferWorkspacePackages: true
+saveWorkspaceProtocol: true
+linkWorkspacePackages: true
