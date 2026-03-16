@@ -1,0 +1,26 @@
+{
+  "name": "render.js",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fastest React Server Components framework",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter @renderjs/cli dev",
+    "build": "bun run --filter @renderjs/core build && bun run --filter @renderjs/cli build",
+    "test": "bun run --filter @renderjs/core test",
+    "typecheck": "bun run --filter @renderjs/core typecheck",
+    "bench": "bun run --filter @renderjs/core bench"
+  },
+  "keywords": [
+    "react",
+    "rsc",
+    "server-components",
+    "framework",
+    "bun",
+    "fast"
+  ],
+  "author": "",
+  "license": "MIT"
+}

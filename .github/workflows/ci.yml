@@ -13,26 +13,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: 9
-      
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
+          bun-version: latest
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install
       
       - name: Type check
-        run: pnpm --filter @renderjs/core typecheck
+        run: bun --filter @renderjs/core typecheck
       
       - name: Run tests
-        run: pnpm --filter @renderjs/core test
+        run: bun --filter @renderjs/core test
       
       - name: Build
-        run: pnpm --filter @renderjs/core build
+        run: bun --filter @renderjs/core build
 
   lint:
     runs-on: ubuntu-latest
@@ -40,17 +35,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: 9
-      
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
+          bun-version: latest
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install
       
       - name: Run linter
-        run: pnpm --filter @renderjs/core lint || true
+        run: bun --filter @renderjs/core lint || true
+
+  benchmark:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      
+      - name: Install dependencies
+        run: bun install
+      
+      - name: Run benchmarks
+        run: bun --filter @renderjs/core bench
