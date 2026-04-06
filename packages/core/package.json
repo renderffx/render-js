@@ -1,7 +1,17 @@
 {
   "name": "@renderjs/core",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "Production-ready React Server Components framework powered by @vitejs/plugin-rsc",
+  "keywords": [
+    "react",
+    "rsc",
+    "react-server-components",
+    "framework",
+    "vercel",
+    "edge",
+    "serverless"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -20,6 +30,10 @@
     "./minimal/client": {
       "import": "./dist/minimal/client.js",
       "types": "./dist/minimal/client.d.ts"
+    },
+    "./vercel-native": {
+      "import": "./dist/vercel-native.js",
+      "types": "./dist/vercel-native.d.ts"
     }
   },
   "files": [
@@ -36,9 +50,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hono/node-server": "^1.13.0",
+    "@vercel/og": "^0.6.3",
     "@vitejs/plugin-rsc": "^0.5.21",
-    "hono": "^4.0.0",
     "magic-string": "^0.30.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -59,5 +72,18 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "directories": {
+    "test": "tests"
+  },
+  "author": "@render.js",
+  "license": "MIT",
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/renderjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/renderjs/renderjs"
   }
 }

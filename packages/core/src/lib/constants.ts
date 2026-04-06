@@ -9,7 +9,7 @@ export const DIST_SERVER = 'server';
 export const BUILD_METADATA_FILE = '__render_build_metadata.js';
 
 export const unstable_constants = {
-  DIST_PUBLIC: '_rsc',
+  DIST_PUBLIC: 'public',
   ENTRY_JSON: 'entry.json',
   SERVER_BUNDLE: 'bundle.js',
   RSC_PATH: '_rsc',

@@ -1,4 +1,4 @@
-import type { Context, Next } from 'hono';
+
 
 export type ApiHandler = (
   req: Request,
@@ -24,12 +24,20 @@ export interface ApiOptions {
   prefix?: string;
 }
 
+// --------------------------------------------------------------------------
+// Path Normalization
+// --------------------------------------------------------------------------
+
 function normalizePath(path: string): string {
   if (!path.startsWith('/')) {
     path = '/' + path;
   }
   return path.replace(/\/+$/, '') || '/';
 }
+
+// --------------------------------------------------------------------------
+// Route Definition
+// --------------------------------------------------------------------------
 
 export function defineApiRoute(
   method: ApiMethod,
@@ -63,6 +71,10 @@ export function definePatchApi(path: string, handler: ApiHandler): ApiRoute {
   return defineApiRoute('PATCH', path, handler);
 }
 
+// --------------------------------------------------------------------------
+// API Handler Factory
+// --------------------------------------------------------------------------
+
 export function createApiHandler(
   routes: ApiRoute[],
   options: ApiOptions = {},
@@ -87,8 +99,10 @@ export function createApiHandler(
     
     const pathParams: Record<string, string> = {};
     
+    // Try exact match first
     let matchedRoute = routeMap.get(path);
     
+    // Then try pattern matching for dynamic routes
     if (!matchedRoute) {
       for (const [routePath, handlers] of routeMap) {
         const paramNames: string[] = [];
@@ -110,6 +124,7 @@ export function createApiHandler(
       }
     }
 
+    // Not found
     if (!matchedRoute) {
       return new Response('Not Found', {
         status: 404,
@@ -117,8 +132,8 @@ export function createApiHandler(
       });
     }
 
+    // Method not allowed
     const handler = matchedRoute.get(method);
-    
     if (!handler) {
       return new Response('Method Not Allowed', {
         status: 405,
@@ -126,9 +141,9 @@ export function createApiHandler(
       });
     }
 
+    // Execute handler
     try {
-      const response = await handler(req, pathParams, url.searchParams);
-      return response;
+      return await handler(req, pathParams, url.searchParams);
     } catch (error) {
       return new Response(
         error instanceof Error ? error.message : 'Internal Server Error',
@@ -137,6 +152,10 @@ export function createApiHandler(
     }
   };
 }
+
+// --------------------------------------------------------------------------
+// Middleware Composition
+// --------------------------------------------------------------------------
 
 export function composeMiddlewares(
   middlewares: MiddlewareHandler[],
@@ -156,6 +175,10 @@ export function composeMiddlewares(
     return dispatch(index);
   };
 }
+
+// --------------------------------------------------------------------------
+// Response Helpers
+// --------------------------------------------------------------------------
 
 export function createErrorResponse(message: string, status: number = 500): Response {
   return new Response(JSON.stringify({ error: message }), {
@@ -187,9 +210,3 @@ export function getQueryParams(req: Request): Record<string, string> {
 export function getPathParams(req: Request): Record<string, string> {
   return (req as any).params || {};
 }
-
-export type {
-  ApiHandler as Unstable_ApiHandler,
-  MiddlewareHandler as Unstable_MiddlewareHandler,
-  ApiRoute as Unstable_ApiRoute,
-};

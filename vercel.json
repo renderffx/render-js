@@ -1,0 +1,33 @@
+{
+  "version": 3,
+  "framework": "@render.js",
+  "regions": ["iad1"],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" }
+      ]
+    }
+  ],
+  "redirects": [
+    { "source": "/old", "destination": "/new", "permanent": true }
+  ],
+  "rewrites": [
+    { "source": "/api/v1/:path*", "destination": "/api/v2/:path*" }
+  ],
+  "images": {
+    "sizes": [640, 750, 828, 1080],
+    "minimumCacheTTL": 60,
+    "formats": ["image/avif", "image/webp"]
+  },
+  "crons": [
+    { "path": "/api/cron", "schedule": "0 0 * * *" }
+  ],
+  "speedInsights": {
+    "enabled": true
+  },
+  "webAnalytics": {
+    "enabled": true
+  }
+}

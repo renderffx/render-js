@@ -1,7 +1,5 @@
-import { Hono } from 'hono';
-import type { MiddlewareHandler } from 'hono';
 import { unstable_createServerEntryAdapter as createServerEntryAdapter } from '../adapter-builders.js';
-import { unstable_constants as constants, unstable_honoMiddleware as honoMiddleware } from '../internals.js';
+import { unstable_constants as constants, unstable_createNativeMiddleware as nativeMiddleware } from '../internals.js';
 
 interface ServerAdapterInput {
   processRequest: (req: Request) => Promise<Response>;
@@ -26,7 +24,7 @@ interface BuildOptions {
 }
 
 const { DIST_PUBLIC } = constants;
-const { contextMiddleware, rscMiddleware, middlewareRunner } = honoMiddleware;
+const { contextMiddleware, rscMiddleware, middlewareRunner } = nativeMiddleware;
 
 export default createServerEntryAdapter(
   (
@@ -35,19 +33,37 @@ export default createServerEntryAdapter(
   ) => {
     const middlewareFns = options?.middlewareFns || [];
     const middlewareModules = options?.middlewareModules || {};
-    const app = new Hono();
-    app.notFound((c) => {
-      if (notFoundHtml) {
-        return c.html(notFoundHtml, 404);
+    
+    const chain = [
+      contextMiddleware(),
+      ...middlewareFns,
+      middlewareRunner(middlewareModules),
+      rscMiddleware({ processRequest }),
+    ];
+
+    async function fetch(req: Request): Promise<Response> {
+      let index = 0;
+      
+      async function dispatch(): Promise<Response> {
+        if (index >= chain.length) {
+          return new Response(notFoundHtml || '404 Not Found', {
+            status: 404,
+            headers: { 'Content-Type': 'text/html' },
+          });
+        }
+        
+        const middleware = chain[index++];
+        return middleware(req, dispatch);
       }
-      return c.text('404 Not Found', 404);
-    });
-    app.use(contextMiddleware());
-    for (const middlewareFn of middlewareFns) {
-      app.use(middlewareFn());
+      
+      try {
+        return await dispatch();
+      } catch (error) {
+        console.error('Server error:', error);
+        return new Response('Internal Server Error', { status: 500 });
+      }
     }
-    app.use(middlewareRunner(middlewareModules));
-    app.use(rscMiddleware({ processRequest }));
+
     const buildOptions: BuildOptions = {
       assetsDir: options?.assetsDir || 'assets',
       distDir: config.distDir,
@@ -57,11 +73,12 @@ export default createServerEntryAdapter(
       DIST_PUBLIC,
       serverless: !options?.static,
     };
+
     return {
-      fetch: app.fetch as (req: Request) => Promise<Response>,
+      fetch,
       build: processBuild,
       buildOptions: { ...buildOptions } as Record<string, unknown>,
-      buildEnhancers: ['@render.js/adapters/vercel-build-enhancer'],
+      buildEnhancers: [],
     } as any;
   },
 );

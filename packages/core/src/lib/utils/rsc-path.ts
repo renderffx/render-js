@@ -1,4 +1,33 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
+
 const FUNC_PREFIX = 'F:';
+
+interface PathContext {
+  encodeCache: Map<string, string>;
+  decodeCache: Map<string, string>;
+}
+
+const pathStorage = new AsyncLocalStorage<PathContext>();
+
+function createPathContext(): PathContext {
+  return {
+    encodeCache: new Map(),
+    decodeCache: new Map(),
+  };
+}
+
+function getPathContext(): PathContext {
+  const ctx = pathStorage.getStore();
+  if (!ctx) {
+    return createPathContext();
+  }
+  return ctx;
+}
+
+export function runWithPathContext<T>(fn: () => T): T {
+  const context = createPathContext();
+  return pathStorage.run(context, fn);
+}
 
 export function encodeFuncId(funcId: string): string {
   return FUNC_PREFIX + funcId;
@@ -11,25 +40,24 @@ export function decodeFuncId(rscPath: string): string | null {
   return rscPath.slice(FUNC_PREFIX.length);
 }
 
-const rscPathCache = new Map<string, string>();
-const rscDecodeCache = new Map<string, string>();
-
 export function encodeRscPath(rscPath: string): string {
-  const cached = rscPathCache.get(rscPath);
+  const ctx = getPathContext();
+  const cached = ctx.encodeCache.get(rscPath);
   if (cached) {
     return cached;
   }
   const encoded = encodeURIComponent(rscPath);
-  rscPathCache.set(rscPath, encoded);
+  ctx.encodeCache.set(rscPath, encoded);
   return encoded;
 }
 
 export function decodeRscPath(encodedRscPath: string): string {
-  const cached = rscDecodeCache.get(encodedRscPath);
+  const ctx = getPathContext();
+  const cached = ctx.decodeCache.get(encodedRscPath);
   if (cached) {
     return cached;
   }
   const decoded = decodeURIComponent(encodedRscPath);
-  rscDecodeCache.set(encodedRscPath, decoded);
+  ctx.decodeCache.set(encodedRscPath, decoded);
   return decoded;
 }

@@ -1,16 +1,42 @@
-export interface CacheOptions {
-  ttl?: number;
-  key?: string;
-  staleWhileRevalidate?: boolean;
+import { type CacheOptions, type CacheEntry } from './cache-types.js';
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+export { type CacheOptions, type CacheEntry };
+
+interface CacheContext {
+  memoryCache: Map<string, CacheEntry<unknown>>;
 }
 
-export interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-  ttl: number;
+const cacheStorage = new AsyncLocalStorage<CacheContext>();
+
+function getCacheContext(): CacheContext {
+  const ctx = cacheStorage.getStore();
+  if (!ctx) {
+    throw new Error(
+      'Cache context not available. Ensure you are within a request context.'
+    );
+  }
+  return ctx;
 }
 
-const memoryCache = new Map<string, CacheEntry<unknown>>();
+export function runWithCacheContext<T>(fn: () => T): T {
+  return cacheStorage.run({ memoryCache: new Map() }, fn);
+}
+
+function evictOldEntries(memoryCache: Map<string, CacheEntry<unknown>>): void {
+  const now = Date.now();
+  const keysToDelete: string[] = [];
+  
+  for (const [key, entry] of memoryCache) {
+    if (now > entry.timestamp + entry.ttl) {
+      keysToDelete.push(key);
+    }
+  }
+  
+  for (const key of keysToDelete) {
+    memoryCache.delete(key);
+  }
+}
 
 export function createServerCache() {
   const cache = new Map<string, CacheEntry<unknown>>();
@@ -88,8 +114,11 @@ export async function cacheAsync<T>(
   fn: () => Promise<T>,
   options: CacheOptions = {}
 ): Promise<T> {
+  const ctx = getCacheContext();
+  evictOldEntries(ctx.memoryCache);
+  
   const ttl = options.ttl ?? 60000;
-  const cached = memoryCache.get(key) as CacheEntry<T> | undefined;
+  const cached = ctx.memoryCache.get(key) as CacheEntry<T> | undefined;
   
   if (cached && Date.now() < cached.timestamp + cached.ttl) {
     return cached.data;
@@ -97,22 +126,24 @@ export async function cacheAsync<T>(
 
   if (options.staleWhileRevalidate && cached) {
     fn().then(data => {
-      memoryCache.set(key, { data, timestamp: Date.now(), ttl });
+      ctx.memoryCache.set(key, { data, timestamp: Date.now(), ttl });
     }).catch(console.error);
     return cached.data;
   }
 
   const data = await fn();
-  memoryCache.set(key, { data, timestamp: Date.now(), ttl });
+  ctx.memoryCache.set(key, { data, timestamp: Date.now(), ttl });
   return data;
 }
 
 export function getCached<T>(key: string): T | undefined {
-  const entry = memoryCache.get(key) as CacheEntry<T> | undefined;
-  if (!entry) return undefined;
+  const ctx = getCacheContext();
   
+  const entry = ctx.memoryCache.get(key) as CacheEntry<T> | undefined;
+  if (!entry) return undefined;
+
   if (Date.now() > entry.timestamp + entry.ttl) {
-    memoryCache.delete(key);
+    ctx.memoryCache.delete(key);
     return undefined;
   }
   
@@ -120,13 +151,15 @@ export function getCached<T>(key: string): T | undefined {
 }
 
 export function setCached<T>(key: string, data: T, ttl = 60000): void {
-  memoryCache.set(key, { data, timestamp: Date.now(), ttl });
+  const ctx = getCacheContext();
+  ctx.memoryCache.set(key, { data, timestamp: Date.now(), ttl });
 }
 
 export function invalidateCache(key?: string): void {
+  const ctx = getCacheContext();
   if (key) {
-    memoryCache.delete(key);
+    ctx.memoryCache.delete(key);
   } else {
-    memoryCache.clear();
+    ctx.memoryCache.clear();
   }
 }

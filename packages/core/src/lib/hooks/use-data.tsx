@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useState, useTransition, useEffect } from 'react';
 import type { ReactNode, Dispatch, SetStateAction } from 'react';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 export type FetchOptions = RequestInit & {
   timeout?: number;
@@ -18,10 +19,47 @@ type CacheEntry<T> = {
   timestamp: number;
 };
 
-const dataCache = new Map<string, CacheEntry<unknown>>();
+interface DataCacheContext {
+  cache: Map<string, CacheEntry<unknown>>;
+}
+
+const dataCacheStorage = new AsyncLocalStorage<DataCacheContext>();
+
+function createDataCacheContext(): DataCacheContext {
+  return { cache: new Map() };
+}
+
+function getDataCacheContext(): DataCacheContext {
+  const ctx = dataCacheStorage.getStore();
+  if (!ctx) {
+    throw new Error(
+      'Data cache context not available. Ensure you are within runWithDataCacheContext.'
+    );
+  }
+  return ctx;
+}
+
+export function runWithDataCacheContext<T>(fn: () => T): T {
+  const context = createDataCacheContext();
+  return dataCacheStorage.run(context, fn);
+}
+
+const CACHE_TTL = 5 * 60 * 1000;
+const MAX_CACHE_SIZE = 1000;
 
 export function setCacheData<T>(key: string, data: T): void {
-  dataCache.set(key, {
+  const ctx = dataCacheStorage.getStore();
+  if (!ctx) {
+    throw new Error(
+      'setCacheData called outside of request context. ' +
+      'Ensure you are within a renderWithContext or similar wrapper.'
+    );
+  }
+  if (ctx.cache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = findOldestEntry(ctx.cache);
+    if (oldestKey) ctx.cache.delete(oldestKey);
+  }
+  ctx.cache.set(key, {
     data,
     loading: false,
     error: null,
@@ -30,16 +68,46 @@ export function setCacheData<T>(key: string, data: T): void {
 }
 
 export function getCacheData<T>(key: string): T | undefined {
-  const entry = dataCache.get(key) as CacheEntry<T> | undefined;
+  const ctx = dataCacheStorage.getStore();
+  if (!ctx) {
+    throw new Error(
+      'getCacheData called outside of request context. ' +
+      'Ensure you are within a renderWithContext or similar wrapper.'
+    );
+  }
+  const entry = ctx.cache.get(key) as CacheEntry<T> | undefined;
+  if (entry && Date.now() - entry.timestamp > CACHE_TTL) {
+    ctx.cache.delete(key);
+    return undefined;
+  }
   return entry?.data;
 }
 
 export function clearCacheData(key?: string): void {
-  if (key) {
-    dataCache.delete(key);
-  } else {
-    dataCache.clear();
+  const ctx = dataCacheStorage.getStore();
+  if (!ctx) {
+    throw new Error(
+      'clearCacheData called outside of request context. ' +
+      'Ensure you are within a renderWithContext or similar wrapper.'
+    );
   }
+  if (key) {
+    ctx.cache.delete(key);
+  } else {
+    ctx.cache.clear();
+  }
+}
+
+function findOldestEntry(cache: Map<string, CacheEntry<unknown>>): string | undefined {
+  let oldestKey: string | undefined;
+  let oldestTime = Infinity;
+  for (const [key, entry] of cache) {
+    if (entry.timestamp < oldestTime) {
+      oldestTime = entry.timestamp;
+      oldestKey = key;
+    }
+  }
+  return oldestKey;
 }
 
 interface UseDataReturn<T> {
@@ -71,10 +139,12 @@ export function useData<T>(
     setLoading(true);
     setError(null);
     
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    
     try {
       const controller = timeout ? new AbortController() : undefined;
-      if (timeout) {
-        setTimeout(() => controller?.abort(), timeout);
+      if (timeout && controller) {
+        timeoutId = setTimeout(() => controller.abort(), timeout);
       }
       
       const result = await fetcher();
@@ -87,6 +157,7 @@ export function useData<T>(
       const error = err instanceof Error ? err : new Error(String(err));
       setError(error);
     } finally {
+      if (timeoutId) clearTimeout(timeoutId);
       setLoading(false);
     }
   }, [cacheKey, fetcher, timeout, startTransition]);

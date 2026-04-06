@@ -1,266 +1,302 @@
-const ABSOLUTE_WIN32_PATH_REGEXP = /^\/[a-zA-Z]:\//;
+// ============================================================================
+// Path Utilities - Simple path manipulation helpers
+// ============================================================================
 
-const pathSpecCache = new Map<string, PathSpec>();
-const pathRegexpCache = new Map<string, string>();
-const pathMappingCache = new Map<string, Record<string, string | string[]> | null>();
-const joinPathCache = new Map<string, string>();
-const pathSpecStringCache = new Map<string, string>();
-
-const MAX_CACHE_SIZE = 1000;
-
-const evictCache = <K, V>(cache: Map<K, V>) => {
-  if (cache.size > MAX_CACHE_SIZE) {
-    const entries = Array.from(cache.entries());
-    cache.clear();
-    const toKeep = entries.slice(-MAX_CACHE_SIZE / 2);
-    toKeep.forEach(([k, v]) => cache.set(k, v));
-  }
-};
-
-export const encodeFilePathToAbsolute = (filePath: string) => {
-  if (ABSOLUTE_WIN32_PATH_REGEXP.test(filePath)) {
-    throw new Error('Unsupported absolute file path: ' + filePath);
-  }
-  if (filePath.startsWith('/')) {
-    return filePath;
-  }
-  return '/' + filePath;
-};
-
-export const decodeFilePathFromAbsolute = (filePath: string) => {
-  if (ABSOLUTE_WIN32_PATH_REGEXP.test(filePath)) {
-    return filePath.slice(1);
-  }
-  return filePath;
-};
-
-export const filePathToFileURL = (filePath: string) =>
-  'file://' + encodeURI(filePath);
-
-export const fileURLToFilePath = (fileURL: string) => {
-  if (!fileURL.startsWith('file://')) {
-    throw new Error('Not a file URL');
-  }
-  return decodeURI(fileURL.slice('file://'.length));
-};
-
-export const joinPath = (...paths: string[]): string => {
-  const cacheKey = paths.join('|||');
-  const cached = joinPathCache.get(cacheKey);
-  if (cached) return cached;
-  
-  const isAbsolute = paths[0]?.startsWith('/');
-  const items = ([] as string[]).concat(
-    ...paths.map((path) => path.split('/')),
-  );
-  const stack: string[] = [];
-  for (const item of items) {
-    if (item === '..') {
-      if (stack.length && stack[stack.length - 1] !== '..') {
-        stack.pop();
-      } else if (!isAbsolute) {
-        stack.push('..');
-      }
-    } else if (item && item !== '.') {
-      stack.push(item);
-    }
-  }
-  const result = (isAbsolute ? '/' : '') + stack.join('/') || '.';
-  
-  evictCache(joinPathCache);
-  joinPathCache.set(cacheKey, result);
-  return result;
-};
-
-export const extname = (filePath: string): string => {
-  const index = filePath.lastIndexOf('.');
-  if (index <= 0) {
-    return '';
-  }
-  if (['/', '.'].includes(filePath[index - 1]!)) {
-    return '';
-  }
-  return filePath.slice(index);
-};
+// --------------------------------------------------------------------------
+// Types
+// --------------------------------------------------------------------------
 
 export type PathSpecItem =
   | { type: 'literal'; name: string }
   | { type: 'group'; name?: string }
   | { type: 'wildcard'; name?: string };
+
 export type PathSpec = readonly PathSpecItem[];
 
-export const parsePathWithSlug = (path: string): PathSpec => {
-  const cached = pathSpecCache.get(path);
-  if (cached) return cached;
+// --------------------------------------------------------------------------
+// Simple File Path Utilities (no caching needed)
+// --------------------------------------------------------------------------
+
+export function extname(filePath: string): string {
+  const lastDot = filePath.lastIndexOf('.');
   
+  if (lastDot <= 0) {
+    return '';
+  }
+  
+  const charBefore = filePath[lastDot - 1]!;
+  
+  if (charBefore === '/' || charBefore === '.') {
+    return '';
+  }
+  
+  return filePath.slice(lastDot);
+}
+
+export function removeBase(url: string, base: string): string {
+  if (base === '/') {
+    return url;
+  }
+  
+  if (!url.startsWith(base)) {
+    return url;
+  }
+  
+  const result = url.slice(base.length);
+  return result || '/';
+}
+
+export function addBase(url: string, base: string): string {
+  if (base === '/') {
+    return url;
+  }
+  
+  return base + url;
+}
+
+export function joinPath(...paths: string[]): string {
+  const isAbsolute = paths[0]?.startsWith('/') ?? false;
+  
+  // Split all paths into segments
+  const segments: string[] = [];
+  
+  for (const path of paths) {
+    let last = 0;
+    
+    for (let i = 0; i < path.length; i++) {
+      if (path[i] === '/') {
+        if (last < i) {
+          segments.push(path.slice(last, i));
+        }
+        last = i + 1;
+      }
+    }
+    
+    if (last < path.length) {
+      segments.push(path.slice(last));
+    }
+  }
+  
+  // Process segments with simple stack
+  const stack: string[] = [];
+  
+  for (const segment of segments) {
+    if (segment === '..') {
+      if (stack.length > 0 && stack[stack.length - 1]! !== '..') {
+        stack.pop();
+      } else if (!isAbsolute) {
+        stack.push('..');
+      }
+    } else if (segment && segment !== '.') {
+      stack.push(segment);
+    }
+  }
+  
+  const result = (isAbsolute ? '/' : '') + stack.join('/');
+  
+  return result || (isAbsolute ? '/' : '.');
+}
+
+// --------------------------------------------------------------------------
+// Path Parsing for Routes
+// --------------------------------------------------------------------------
+
+export function parsePathWithSlug(path: string): PathSpec {
   const result: PathSpec = path
     .split('/')
     .filter(Boolean)
-    .map((name) => {
-      let type: 'literal' | 'group' | 'wildcard' = 'literal';
-      const isSlug = name.startsWith('[') && name.endsWith(']');
-      if (isSlug) {
-        type = 'group';
-        name = name.slice(1, -1);
+    .map((segment) => {
+      if (segment.startsWith('...')) {
+        return { type: 'wildcard' as const, name: segment.slice(3) };
       }
-      const isWildcard = name.startsWith('...');
-      if (isWildcard) {
-        type = 'wildcard';
-        name = name.slice(3);
+      
+      if (segment.startsWith('[') && segment.endsWith(']')) {
+        return { type: 'group' as const, name: segment.slice(1, -1) };
       }
-      return { type, name };
+      
+      return { type: 'literal' as const, name: segment };
     });
-    
-  evictCache(pathSpecCache);
-  pathSpecCache.set(path, result);
+  
   return result;
-};
+}
 
-export const parseExactPath = (path: string): PathSpec =>
-  path
+export function parseExactPath(path: string): PathSpec {
+  return path
     .split('/')
     .filter(Boolean)
-    .map((name) => ({ type: 'literal', name }));
+    .map((name) => ({ type: 'literal' as const, name }));
+}
 
-export const path2regexp = (path: PathSpec): string => {
-  const cacheKey = JSON.stringify(path);
-  const cached = pathRegexpCache.get(cacheKey);
-  if (cached) return cached;
+// --------------------------------------------------------------------------
+// Path to Regex Conversion
+// --------------------------------------------------------------------------
+
+export function path2regexp(path: PathSpec): string {
+  const parts: string[] = [];
   
+  for (const { type, name } of path) {
+    if (type === 'literal') {
+      parts.push(name);
+    } else if (type === 'group') {
+      parts.push('([^/]+)');
+    } else {
+      parts.push('(.*)');
+    }
+  }
+  
+  return '^/' + parts.join('/') + '$';
+}
+
+// --------------------------------------------------------------------------
+// Path Spec to String
+// --------------------------------------------------------------------------
+
+export function pathSpecAsString(path: PathSpec): string {
   const parts = path.map(({ type, name }) => {
     if (type === 'literal') {
       return name;
-    } else if (type === 'group') {
-      return `([^/]+)`;
-    } else {
-      return `(.*)`;
     }
+    if (type === 'group') {
+      return `[${name}]`;
+    }
+    return `[...${name}]`;
   });
-  const result = `^/${parts.join('/')}$`;
   
-  evictCache(pathRegexpCache);
-  pathRegexpCache.set(cacheKey, result);
-  return result;
-};
+  return '/' + parts.join('/');
+}
 
-export const pathSpecAsString = (path: PathSpec): string => {
-  const cacheKey = JSON.stringify(path);
-  const cached = pathSpecStringCache.get(cacheKey);
-  if (cached) return cached;
-  
-  const result = (
-    '/' +
-    path
-      .map(({ type, name }) => {
-        if (type === 'literal') {
-          return name;
-        } else if (type === 'group') {
-          return `[${name}]`;
-        } else {
-          return `[...${name}]`;
-        }
-      })
-      .join('/')
-  );
-  
-  evictCache(pathSpecStringCache);
-  pathSpecStringCache.set(cacheKey, result);
-  return result;
-};
+// --------------------------------------------------------------------------
+// Path Parameter Mapping
+// --------------------------------------------------------------------------
 
-export const getPathMapping = (
+export function getPathMapping(
   pathSpec: PathSpec,
   pathname: string,
-): Record<string, string | string[]> | null => {
-  const cacheKey = JSON.stringify(pathSpec) + '|||' + pathname;
-  const cached = pathMappingCache.get(cacheKey);
-  if (cached !== undefined) return cached;
+): Record<string, string | string[]> | null {
+  const segments = pathname.split('/').filter(Boolean);
   
-  const actual = pathname.split('/').filter(Boolean);
-  if (pathSpec.length > actual.length) {
+  // Check length constraints early
+  if (pathSpec.length > segments.length) {
     const hasWildcard = pathSpec.some((spec) => spec.type === 'wildcard');
-    if (!hasWildcard || actual.length > 0) {
-      pathMappingCache.set(cacheKey, null);
+    
+    if (!hasWildcard || segments.length > 0) {
       return null;
     }
   }
+  
   const mapping: Record<string, string | string[]> = {};
-  let wildcardStartIndex = -1;
+  let wildcardIndex = -1;
+  
+  // Parse non-wildcard segments
   for (let i = 0; i < pathSpec.length; i++) {
-    const { type, name } = pathSpec[i]!;
-    if (type === 'literal') {
-      if (name !== actual[i]) {
-        pathMappingCache.set(cacheKey, null);
+    const spec = pathSpec[i]!;
+    
+    if (spec.type === 'literal') {
+      if (spec.name !== segments[i]) {
         return null;
       }
-    } else if (type === 'wildcard') {
-      wildcardStartIndex = i;
+      continue;
+    }
+    
+    if (spec.type === 'wildcard') {
+      wildcardIndex = i;
       break;
-    } else if (name) {
-      mapping[name] = actual[i]!;
+    }
+    
+    // group type
+    if (spec.name) {
+      mapping[spec.name] = segments[i]!;
     }
   }
-  if (wildcardStartIndex === -1) {
-    if (pathSpec.length !== actual.length) {
-      pathMappingCache.set(cacheKey, null);
+  
+  // Handle wildcard
+  if (wildcardIndex === -1) {
+    if (pathSpec.length !== segments.length) {
       return null;
     }
-    pathMappingCache.set(cacheKey, mapping);
     return mapping;
   }
-
-  if (wildcardStartIndex === 0 && actual.length === 0) {
-    const wildcardName = pathSpec[wildcardStartIndex]!.name;
+  
+  // Wildcard present - validate trailing literal
+  if (wildcardIndex === 0 && segments.length === 0) {
+    const wildcardName = pathSpec[0]!.name;
     if (wildcardName) {
       mapping[wildcardName] = [];
     }
-    pathMappingCache.set(cacheKey, mapping);
     return mapping;
   }
-
-  let wildcardEndIndex = -1;
+  
+  // Find wildcard end by matching from end
+  let wildcardEnd = -1;
+  
   for (let i = 0; i < pathSpec.length; i++) {
-    const { type, name } = pathSpec[pathSpec.length - i - 1]!;
-    if (type === 'literal') {
-      if (name !== actual[actual.length - i - 1]) {
-        pathMappingCache.set(cacheKey, null);
+    const spec = pathSpec[pathSpec.length - i - 1]!;
+    const segIndex = segments.length - i - 1;
+    
+    if (spec.type === 'literal') {
+      if (spec.name !== segments[segIndex]) {
         return null;
       }
-    } else if (type === 'wildcard') {
-      wildcardEndIndex = actual.length - i - 1;
+      continue;
+    }
+    
+    if (spec.type === 'wildcard') {
+      wildcardEnd = segIndex;
       break;
-    } else if (name) {
-      mapping[name] = actual[actual.length - i - 1]!;
+    }
+    
+    if (spec.name) {
+      mapping[spec.name] = segments[segIndex]!;
     }
   }
-  if (wildcardStartIndex === -1 || wildcardEndIndex === -1) {
-    pathMappingCache.set(cacheKey, null);
+  
+  if (wildcardEnd === -1) {
     return null;
   }
-  const wildcardName = pathSpec[wildcardStartIndex]!.name;
+  
+  const wildcardName = pathSpec[wildcardIndex]!.name;
   if (wildcardName) {
-    mapping[wildcardName] = actual.slice(
-      wildcardStartIndex,
-      wildcardEndIndex + 1,
-    );
+    mapping[wildcardName] = segments.slice(wildcardIndex, wildcardEnd + 1);
   }
-  pathMappingCache.set(cacheKey, mapping);
+  
   return mapping;
-};
-
-export function removeBase(url: string, base: string) {
-  if (base !== '/') {
-    if (!url.startsWith(base)) {
-      return url;
-    }
-    return url.slice(base.length) || '/';
-  }
-  return url;
 }
 
-export function addBase(url: string, base: string) {
-  if (base !== '/') {
-    return base + url;
+// --------------------------------------------------------------------------
+// File URL Conversions
+// --------------------------------------------------------------------------
+
+export function filePathToFileURL(filePath: string): string {
+  return 'file://' + encodeURI(filePath);
+}
+
+export function fileURLToFilePath(fileURL: string): string {
+  if (!fileURL.startsWith('file://')) {
+    throw new Error('Not a file URL');
   }
-  return url;
+  
+  return decodeURI(fileURL.slice('file://'.length));
+}
+
+// Windows paths like /C:/Users/... need special handling
+const WIN32_ABSOLUTE_REGEX = /^\/[a-zA-Z]:\//;
+
+export function encodeFilePathToAbsolute(filePath: string): string {
+  if (WIN32_ABSOLUTE_REGEX.test(filePath)) {
+    throw new Error('Unsupported absolute file path: ' + filePath);
+  }
+  
+  if (filePath.startsWith('/')) {
+    return filePath;
+  }
+  
+  return '/' + filePath;
+}
+
+export function decodeFilePathFromAbsolute(filePath: string): string {
+  if (WIN32_ABSOLUTE_REGEX.test(filePath)) {
+    return filePath.slice(1);
+  }
+  
+  return filePath;
 }

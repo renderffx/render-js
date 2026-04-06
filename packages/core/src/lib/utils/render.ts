@@ -6,7 +6,7 @@ export function createRenderUtils(
     data: unknown,
     options?: object,
     extraOptions?: object,
-  ) => ReadableStream,
+  ) => Promise<ReadableStream> | ReadableStream,
   createFromReadableStream: (
     stream: ReadableStream,
     options?: object,
@@ -42,7 +42,7 @@ export function createRenderUtils(
 
   return {
     async renderRsc(elements, options) {
-      return renderToReadableStream(
+      const stream = await renderToReadableStream(
         elements,
         {
           temporaryReferences,
@@ -58,6 +58,7 @@ export function createRenderUtils(
           },
         },
       );
+      return stream;
     },
     async parseRsc(stream) {
       return createFromReadableStream(stream, {}) as Promise<
@@ -68,7 +69,7 @@ export function createRenderUtils(
       const { INTERNAL_renderHtmlStream } =
         await loadSsrEntryModule();
 
-      const rscHtmlStream = renderToReadableStream(html, {
+      const rscHtmlStream = await renderToReadableStream(html, {
         onError,
       });
       const opts = options as any;

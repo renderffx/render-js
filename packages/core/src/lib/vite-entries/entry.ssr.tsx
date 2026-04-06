@@ -1,1 +1,1 @@
-export { default } from 'virtual:vite-rsc-render/server-entry';
+export { default } from 'virtual:@renderjs/server-entry';

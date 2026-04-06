@@ -1,3 +1,4 @@
+
 import type { ReactNode } from 'react';
 import { createCustomError, getErrorInfo } from '../lib/utils/custom-errors.js';
 import { getPathMapping } from '../lib/utils/path.js';
@@ -17,113 +18,105 @@ import {
   pathnameToRoutePath,
 } from './common.js';
 
+
 export type ApiHandler = (
   req: Request,
   apiContext: { params: Record<string, string | string[]> },
 ) => Promise<Response>;
 
-const isStringArray = (x: unknown): x is string[] =>
-  Array.isArray(x) && x.every((y) => typeof y === 'string');
+type SlotId = string;
 
-const parseRscParams = (
-  rscParams: unknown,
-): {
-  query: string;
-} => {
-  if (rscParams instanceof URLSearchParams) {
-    return { query: rscParams.get('query') || '' };
-  }
-  if (
-    typeof (rscParams as { query?: undefined } | undefined)?.query === 'string'
-  ) {
-    return { query: (rscParams as { query: string }).query };
-  }
-  return { query: '' };
+const ROOT_SLOT_ID = 'root';
+const ROUTE_SLOT_ID_PREFIX = 'route:';
+const SLICE_SLOT_ID_PREFIX = 'slice:';
+
+export type RouteConfig = {
+  type: 'route';
+  path: PathSpec;
+  isStatic: boolean;
+  pathPattern?: PathSpec;
+  rootElement: { isStatic: boolean; renderer: (opt: RendererOption) => ReactNode };
+  routeElement: { isStatic: boolean; renderer: (opt: RendererOption) => ReactNode };
+  elements: Record<SlotId, { isStatic: boolean; renderer: (opt: RendererOption) => ReactNode }>;
+  noSsr?: boolean;
+  slices?: string[];
 };
 
-const RSC_PATH_SYMBOL = Symbol('RSC_PATH');
-const RSC_PARAMS_SYMBOL = Symbol('RSC_PARAMS');
+export type ApiConfig = {
+  type: 'api';
+  path: PathSpec;
+  isStatic: boolean;
+  handler: ApiHandler;
+};
 
-const setRscPath = (rscPath: string) => {
+export type SliceConfig = {
+  type: 'slice';
+  id: string;
+  isStatic: boolean;
+  renderer: () => Promise<ReactNode>;
+};
+
+type RendererOption = { routePath: string; query: string | undefined };
+
+// ============================================================================
+// Context Keys
+// ============================================================================
+
+const RSC_PATH_KEY = '__rsc_path__';
+const RSC_PARAMS_KEY = '__rsc_params__';
+const RERENDER_KEY = '__rerender__';
+
+type ContextData = Record<string, unknown>;
+
+function setContextValue(key: string, value: unknown): void {
   try {
-    const context = getContext();
-    (context as unknown as Record<typeof RSC_PATH_SYMBOL, unknown>)[
-      RSC_PATH_SYMBOL
-    ] = rscPath;
+    const ctx = getContext();
+    (ctx.data as ContextData)[key] = value;
   } catch {
-    // ignore
+    // Context may not be available
   }
-};
+}
 
-const setRscParams = (rscParams: unknown) => {
+function getContextValue<T>(key: string): T | undefined {
   try {
-    const context = getContext();
-    (context as unknown as Record<typeof RSC_PARAMS_SYMBOL, unknown>)[
-      RSC_PARAMS_SYMBOL
-    ] = rscParams;
-  } catch {
-    // ignore
-  }
-};
-
-export function unstable_getRscPath(): string | undefined {
-  try {
-    const context = getContext();
-    return (context as unknown as Record<typeof RSC_PATH_SYMBOL, string>)[
-      RSC_PATH_SYMBOL
-    ];
+    const ctx = getContext();
+    return (ctx.data as ContextData)[key] as T | undefined;
   } catch {
     return undefined;
   }
+}
+
+// ============================================================================
+// Public Context API
+// ============================================================================
+
+export function unstable_getRscPath(): string | undefined {
+  return getContextValue(RSC_PATH_KEY);
 }
 
 export function unstable_getRscParams(): unknown {
+  return getContextValue(RSC_PARAMS_KEY);
+}
+
+type RerenderFn = (rscPath: string, rscParams?: unknown) => void;
+
+function getRerender(): RerenderFn {
+  return getContextValue(RERENDER_KEY) as RerenderFn;
+}
+
+function getNonce(): string | undefined {
   try {
-    const context = getContext();
-    return (context as unknown as Record<typeof RSC_PARAMS_SYMBOL, unknown>)[
-      RSC_PARAMS_SYMBOL
-    ];
+    return getContext().nonce;
   } catch {
     return undefined;
   }
 }
 
-const getNonce = () => {
-  try {
-    const context = getContext();
-    return context.nonce;
-  } catch {
-    return undefined;
-  }
-};
+// ============================================================================
+// Navigation Helpers
+// ============================================================================
 
-const RERENDER_SYMBOL = Symbol('RERENDER');
-type Rerender = (rscPath: string, rscParams?: unknown) => void;
-
-const setRerender = (rerender: Rerender) => {
-  try {
-    const context = getContext();
-    (context as unknown as Record<typeof RERENDER_SYMBOL, Rerender>)[
-      RERENDER_SYMBOL
-    ] = rerender;
-  } catch {
-    // ignore
-  }
-};
-
-const getRerender = (): Rerender => {
-  const context = getContext();
-  return (context as unknown as Record<typeof RERENDER_SYMBOL, Rerender>)[
-    RERENDER_SYMBOL
-  ];
-};
-
-const is404 = (pathSpec: PathSpec) =>
-  pathSpec.length === 1 &&
-  pathSpec[0]!.type === 'literal' &&
-  pathSpec[0]!.name === '404';
-
-export function unstable_rerenderRoute(pathname: string, query?: string) {
+export function unstable_rerenderRoute(pathname: string, query?: string): void {
   const routePath = pathnameToRoutePath(pathname);
   const rscPath = encodeRoutePath(routePath);
   getRerender()(rscPath, query && new URLSearchParams({ query }));
@@ -140,13 +133,34 @@ export function unstable_redirect(
   throw createCustomError('Redirect', { status, location });
 }
 
-type SlotId = string;
+// ============================================================================
+// Private Helpers
+// ============================================================================
 
-const ROOT_SLOT_ID = 'root';
-const ROUTE_SLOT_ID_PREFIX = 'route:';
-const SLICE_SLOT_ID_PREFIX = 'slice:';
+const isStringArray = (x: unknown): x is string[] =>
+  Array.isArray(x) && x.every((y) => typeof y === 'string');
 
-const assertNonReservedSlotId = (slotId: SlotId) => {
+function parseRscParams(rscParams: unknown): { query: string } {
+  if (rscParams instanceof URLSearchParams) {
+    return { query: rscParams.get('query') || '' };
+  }
+  
+  if (typeof (rscParams as { query?: undefined } | undefined)?.query === 'string') {
+    return { query: (rscParams as { query: string }).query };
+  }
+  
+  return { query: '' };
+}
+
+function is404(pathSpec: PathSpec): boolean {
+  return (
+    pathSpec.length === 1 &&
+    pathSpec[0]!.type === 'literal' &&
+    pathSpec[0]!.name === '404'
+  );
+}
+
+function assertNonReservedSlotId(slotId: SlotId): void {
   if (
     slotId === ROOT_SLOT_ID ||
     slotId.startsWith(ROUTE_SLOT_ID_PREFIX) ||
@@ -154,120 +168,167 @@ const assertNonReservedSlotId = (slotId: SlotId) => {
   ) {
     throw new Error('Element ID cannot be "root", "route:*" or "slice:*"');
   }
-};
+}
 
-type RendererOption = { routePath: string; query: string | undefined };
-
-type RouteConfig = {
-  type: 'route';
-  path: PathSpec;
-  isStatic: boolean;
-  pathPattern?: PathSpec;
-  rootElement: {
-    isStatic: boolean;
-    renderer: (option: RendererOption) => ReactNode;
-  };
-  routeElement: {
-    isStatic: boolean;
-    renderer: (option: RendererOption) => ReactNode;
-  };
-  elements: Record<
-    SlotId,
-    {
-      isStatic: boolean;
-      renderer: (option: RendererOption) => ReactNode;
-    }
-  >;
-  noSsr?: boolean;
-  slices?: string[];
-};
-
-type ApiConfig = {
-  type: 'api';
-  path: PathSpec;
-  isStatic: boolean;
-  handler: ApiHandler;
-};
-
-type SliceConfig = {
-  type: 'slice';
-  id: string;
-  isStatic: boolean;
-  renderer: () => Promise<ReactNode>;
-};
+// ============================================================================
+// Main Router
+// ============================================================================
 
 export function unstable_defineRouter(fns: {
   getConfigs: () => Promise<Iterable<RouteConfig | ApiConfig | SliceConfig>>;
 }) {
-  type MyConfig = {
-    configs: (RouteConfig | ApiConfig | SliceConfig)[];
-    has404: boolean;
-  };
+  // --------------------------------------------------------------------------
+  // Config Caching
+  // --------------------------------------------------------------------------
+  
+  let cachedConfig: { configs: (RouteConfig | ApiConfig | SliceConfig)[]; has404: boolean } | undefined;
 
-  let cachedMyConfig: MyConfig | undefined;
-  const getMyConfig = async (): Promise<MyConfig> => {
-    if (!cachedMyConfig) {
-      const configs = Array.from(await fns.getConfigs());
-      let has404 = false;
-      configs.forEach((item) => {
-        if (item.type === 'route') {
-          Object.keys(item.elements).forEach(assertNonReservedSlotId);
-          if (!has404 && is404(item.path)) {
-            has404 = true;
-          }
-        }
-      });
-      cachedMyConfig = { configs, has404 };
+  const getMyConfig = async () => {
+    if (cachedConfig) {
+      return cachedConfig;
     }
-    return cachedMyConfig;
+
+    const configs = Array.from(await fns.getConfigs());
+    let has404 = false;
+
+    for (const item of configs) {
+      if (item.type === 'route') {
+        Object.keys(item.elements).forEach(assertNonReservedSlotId);
+        if (!has404 && is404(item.path)) {
+          has404 = true;
+        }
+      }
+    }
+
+    cachedConfig = { configs, has404 };
+    return cachedConfig;
   };
 
-  const getPathConfigItem = async (pathname: string) => {
+  const findPathConfig = async (pathname: string) => {
     const routePath = pathnameToRoutePath(pathname);
-    const myConfig = await getMyConfig();
-    const found = myConfig.configs.find(
-      (item): item is typeof item & { type: 'route' | 'api' } =>
+    const { configs } = await getMyConfig();
+
+    return configs.find(
+      (item): item is RouteConfig | ApiConfig =>
         (item.type === 'route' || item.type === 'api') &&
         !!getPathMapping(item.path, routePath),
     );
-    return found;
   };
 
+  // --------------------------------------------------------------------------
+  // Slice Handling
+  // --------------------------------------------------------------------------
+
   const getSliceElement = async (
-    sliceConfig: {
-      id: string;
-      isStatic: boolean;
-      renderer: () => Promise<ReactNode>;
-    },
-    getCachedElement: (id: SlotId) => Promise<ReactNode> | undefined,
-    setCachedElement: (id: SlotId, element: ReactNode) => Promise<ReactNode>,
+    sliceConfig: SliceConfig,
+    getCached: (id: SlotId) => Promise<ReactNode> | undefined,
+    setCached: (id: SlotId, element: ReactNode) => Promise<ReactNode>,
   ): Promise<ReactNode> => {
     const id = SLICE_SLOT_ID_PREFIX + sliceConfig.id;
-    const cached = getCachedElement(id);
+    const cached = getCached(id);
     if (cached) {
       return cached;
     }
+
     let element = await sliceConfig.renderer();
+    
     if (sliceConfig.isStatic) {
-      element = await setCachedElement(id, element);
+      element = await setCached(id, element);
     }
+    
     return element;
   };
 
-  const getEntriesForRoute = async (
+  // --------------------------------------------------------------------------
+  // Element Caching
+  // --------------------------------------------------------------------------
+
+  const cachedElements = new Map<SlotId, Promise<ReactNode>>();
+  let metadataLoaded = false;
+
+  const getCachedElement = (id: SlotId) => cachedElements.get(id);
+
+  const setCachedElement = (id: SlotId, element: ReactNode): Promise<ReactNode> => {
+    const existing = cachedElements.get(id);
+    if (existing) {
+      return existing;
+    }
+    
+    const promise = (context.renderRsc!({ [id]: element }) as Promise<unknown>)
+      .then((rscStream: unknown) =>
+        (context.parseRsc!)(rscStream as ReadableStream).then((parsed: unknown) =>
+          (parsed as Record<string, unknown>)[id],
+        ),
+      ) as Promise<ReactNode>;
+    
+    cachedElements.set(id, promise);
+    return promise;
+  };
+
+  // --------------------------------------------------------------------------
+  // Build Metadata Loading
+  // --------------------------------------------------------------------------
+
+  const context: {
+    renderRsc: ((entries: Record<string, unknown>) => Promise<ReadableStream>) | undefined;
+    parseRsc: ((stream: ReadableStream) => Promise<Record<string, unknown>>) | undefined;
+    renderHtml: ((
+      elementsStream: ReadableStream,
+      html: unknown,
+      opts?: object,
+    ) => Promise<Response>) | undefined;
+    loadBuildMetadata: ((key: string) => Promise<string | undefined>) | undefined;
+  } = {
+    renderRsc: undefined,
+    parseRsc: undefined,
+    renderHtml: undefined,
+    loadBuildMetadata: undefined,
+  };
+
+  const loadMetadata = async () => {
+    if (metadataLoaded) {
+      return;
+    }
+    metadataLoaded = true;
+
+    if (!context.loadBuildMetadata) {
+      return;
+    }
+
+    const metadata = await context.loadBuildMetadata('defineRouter:cachedElements');
+    if (!metadata) {
+      return;
+    }
+
+    const parsed = JSON.parse(metadata);
+    for (const [id, str] of Object.entries(parsed)) {
+      const promise = context.parseRsc!(base64ToStream(str as string)).then(
+        (parsed: unknown) => (parsed as Record<string, unknown>)[id],
+      ) as Promise<ReactNode>;
+      cachedElements.set(id, promise);
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // Route Entry Building
+  // --------------------------------------------------------------------------
+
+  async function getEntriesForRoute(
     rscPath: string,
     rscParams: unknown,
     headers: Readonly<Record<string, string>>,
-    getCachedElement: (id: SlotId) => Promise<ReactNode> | undefined,
-    setCachedElement: (id: SlotId, element: ReactNode) => Promise<ReactNode>,
-  ) => {
-    setRscPath(rscPath);
-    setRscParams(rscParams);
+  ): Promise<Record<SlotId, unknown> | null> {
+    setContextValue(RSC_PATH_KEY, rscPath);
+    setContextValue(RSC_PARAMS_KEY, rscParams);
+
     const routePath = decodeRoutePath(rscPath);
-    const pathConfigItem = await getPathConfigItem(routePath);
-    if (pathConfigItem?.type !== 'route') {
+    const pathConfig = await findPathConfig(routePath);
+
+    if (pathConfig?.type !== 'route') {
       return null;
     }
+
+    // Parse skip header for partial hydration
     let skipParam: unknown;
     try {
       skipParam = JSON.parse(headers[SKIP_HEADER.toLowerCase()] || '');
@@ -275,233 +336,244 @@ export function unstable_defineRouter(fns: {
       // ignore
     }
     const skipIdSet = new Set(isStringArray(skipParam) ? skipParam : []);
+
     const { query } = parseRscParams(rscParams);
     const routeId = ROUTE_SLOT_ID_PREFIX + routePath;
-    const option: RendererOption = {
+    const rendererOption: RendererOption = {
       routePath,
-      query: pathConfigItem.isStatic ? undefined : query,
+      query: pathConfig.isStatic ? undefined : query,
     };
-    const myConfig = await getMyConfig();
-    const slices = pathConfigItem.slices || [];
-    const sliceConfigMap = new Map<
-      string,
-      { id: string; isStatic: boolean; renderer: () => Promise<ReactNode> }
-    >();
-    slices.forEach((sliceId) => {
-      const sliceConfig = myConfig.configs.find(
-        (item): item is typeof item & { type: 'slice' } =>
+
+    const { configs, has404 } = await getMyConfig();
+    const slices = pathConfig.slices || [];
+
+    // Map slice IDs to configs
+    const sliceConfigMap = new Map<string, SliceConfig>();
+    for (const sliceId of slices) {
+      const sliceConfig = configs.find(
+        (item): item is SliceConfig =>
           item.type === 'slice' && item.id === sliceId,
       );
       if (sliceConfig) {
         sliceConfigMap.set(sliceId, sliceConfig);
       }
-    });
+    }
+
     const entries: Record<SlotId, unknown> = {};
-    await Promise.all([
-      (async () => {
-        if (!pathConfigItem.rootElement.isStatic) {
-          entries[ROOT_SLOT_ID] = pathConfigItem.rootElement.renderer(option);
-        } else if (!skipIdSet.has(ROOT_SLOT_ID)) {
-          const cached = getCachedElement(ROOT_SLOT_ID);
+    const promises: Promise<void>[] = [];
+
+    // Root element
+    if (!pathConfig.rootElement.isStatic) {
+      entries[ROOT_SLOT_ID] = pathConfig.rootElement.renderer(rendererOption);
+    } else if (!skipIdSet.has(ROOT_SLOT_ID)) {
+      const cached = getCachedElement(ROOT_SLOT_ID);
+      promises.push(
+        (async () => {
           entries[ROOT_SLOT_ID] = cached
             ? await cached
-            : await setCachedElement(
-                ROOT_SLOT_ID,
-                pathConfigItem.rootElement.renderer(option),
-              );
-        }
-      })(),
-      (async () => {
-        if (!pathConfigItem.routeElement.isStatic) {
-          entries[routeId] = pathConfigItem.routeElement.renderer(option);
-        } else if (!skipIdSet.has(routeId)) {
-          const cached = getCachedElement(routeId);
+            : await setCachedElement(ROOT_SLOT_ID, pathConfig.rootElement.renderer(rendererOption));
+        })(),
+      );
+    }
+
+    // Route element (the page itself)
+    if (!pathConfig.routeElement.isStatic) {
+      entries[routeId] = pathConfig.routeElement.renderer(rendererOption);
+    } else if (!skipIdSet.has(routeId)) {
+      const cached = getCachedElement(routeId);
+      promises.push(
+        (async () => {
           entries[routeId] = cached
             ? await cached
-            : await setCachedElement(
-                routeId,
-                pathConfigItem.routeElement.renderer(option),
-              );
-        }
-      })(),
-      ...Object.entries(pathConfigItem.elements).map(
-        async ([elementId, { isStatic, renderer }]) => {
-          if (!isStatic) {
-            entries[elementId] = renderer?.(option);
-          } else if (!skipIdSet.has(elementId)) {
-            const cached = getCachedElement(elementId);
+            : await setCachedElement(routeId, pathConfig.routeElement.renderer(rendererOption));
+        })(),
+      );
+    }
+
+    // Additional elements (nested components)
+    for (const [elementId, { isStatic, renderer }] of Object.entries(pathConfig.elements)) {
+      if (!isStatic) {
+        entries[elementId] = renderer?.(rendererOption);
+      } else if (!skipIdSet.has(elementId)) {
+        const cached = getCachedElement(elementId);
+        promises.push(
+          (async () => {
             entries[elementId] = cached
               ? await cached
-              : await setCachedElement(elementId, renderer?.(option));
-          }
-        },
-      ),
-      ...slices.map(async (sliceId) => {
-        const id = SLICE_SLOT_ID_PREFIX + sliceId;
-        const sliceConfig = sliceConfigMap.get(sliceId);
-        if (!sliceConfig) {
-          throw new Error(`Slice not found: ${sliceId}`);
-        }
-        if (sliceConfig.isStatic && skipIdSet.has(id)) {
-          return null;
-        }
-        const sliceElement = await getSliceElement(
-          sliceConfig,
-          getCachedElement,
-          setCachedElement,
+              : await setCachedElement(elementId, renderer?.(rendererOption));
+          })(),
         );
-        entries[id] = sliceElement;
-      }),
-    ]);
+      }
+    }
+
+    // Slices
+    for (const sliceId of slices) {
+      const id = SLICE_SLOT_ID_PREFIX + sliceId;
+      const sliceConfig = sliceConfigMap.get(sliceId);
+      
+      if (!sliceConfig) {
+        throw new Error(`Slice not found: ${sliceId}`);
+      }
+      
+      if (sliceConfig.isStatic && skipIdSet.has(id)) {
+        continue;
+      }
+      
+      promises.push(
+        (async () => {
+          entries[id] = await getSliceElement(sliceConfig, getCachedElement, setCachedElement);
+        })(),
+      );
+    }
+
+    // Wait for all async elements
+    await Promise.all(promises);
+
+    // Add special entries
     entries[ROUTE_ID] = [routePath, query];
-    entries[IS_STATIC_ID] = pathConfigItem.isStatic;
-    sliceConfigMap.forEach((sliceConfig, sliceId) => {
+    entries[IS_STATIC_ID] = pathConfig.isStatic;
+
+    // Mark static slices
+    for (const [sliceId, sliceConfig] of sliceConfigMap) {
       if (sliceConfig.isStatic) {
         entries[IS_STATIC_ID + ':' + SLICE_SLOT_ID_PREFIX + sliceId] = true;
       }
-    });
-    if (myConfig.has404) {
+    }
+
+    // Mark 404 presence
+    if (has404) {
       entries[HAS404_ID] = true;
     }
+
     return entries;
-  };
+  }
 
-  type HandleRequest = Parameters<typeof defineHandlers>[0]['handleRequest'];
+  // --------------------------------------------------------------------------
+  // Request Handling
+  // --------------------------------------------------------------------------
 
-  const cachedElementsForRequest = new Map<SlotId, Promise<ReactNode>>();
-  let cachedElementsForRequestInitialized = false;
-
-  const handleRequest: HandleRequest = async (
-    input,
-    context,
+  const handleRequest = async (
+    input: {
+      req: Request;
+      pathname: string;
+      type: 'html' | 'rsc' | 'component' | 'function' | 'action' | 'custom';
+      rscPath?: string;
+      rscParams?: unknown;
+      fn?: (...args: unknown[]) => unknown;
+      args?: unknown[];
+    },
+    ctx: {
+      renderRsc: (entries: Record<string, unknown>) => Promise<ReadableStream>;
+      parseRsc: (stream: ReadableStream) => Promise<Record<string, unknown>>;
+      renderHtml: (
+        elementsStream: ReadableStream,
+        html: unknown,
+        opts?: object,
+      ) => Promise<Response>;
+      loadBuildMetadata: (key: string) => Promise<string | undefined>;
+    },
   ): Promise<ReadableStream | Response | 'fallback' | null | undefined> => {
-    const { renderRsc, parseRsc, renderHtml, loadBuildMetadata } = context ?? {};
-    const getCachedElement = (id: SlotId) => cachedElementsForRequest.get(id);
-    const setCachedElement = (id: SlotId, element: ReactNode) => {
-      const cached = cachedElementsForRequest.get(id);
-      if (cached) {
-        return cached;
-      }
-      const p = renderRsc!({ [id]: element }).then((rscStream: any) =>
-        parseRsc!(rscStream).then((parsed: any) => parsed[id]),
-      ) as Promise<ReactNode>;
-      cachedElementsForRequest.set(id, p);
-      return p;
-    };
-    if (!cachedElementsForRequestInitialized) {
-      cachedElementsForRequestInitialized = true;
-      const cachedElementsMetadata = await loadBuildMetadata!(
-        'defineRouter:cachedElements',
-      );
-      if (cachedElementsMetadata) {
-        Object.entries(JSON.parse(cachedElementsMetadata)).forEach(
-          ([id, str]) => {
-            cachedElementsForRequest.set(
-              id,
-              parseRsc!(base64ToStream(str as string)).then(
-                (parsed: any) => parsed[id],
-              ) as Promise<ReactNode>,
-            );
-          },
-        );
-      }
-    }
+    context.renderRsc = ctx?.renderRsc;
+    context.parseRsc = ctx?.parseRsc;
+    context.renderHtml = ctx?.renderHtml;
+    context.loadBuildMetadata = ctx?.loadBuildMetadata;
 
-    const pathConfigItem = await getPathConfigItem(input.pathname);
-    if (pathConfigItem?.type === 'api') {
+    await loadMetadata();
+
+    const pathConfig = await findPathConfig(input.pathname);
+
+    // --------------------------------------------------------------------------
+    // API Routes
+    // --------------------------------------------------------------------------
+    
+    if (pathConfig?.type === 'api') {
       const url = new URL(input.req.url);
       url.pathname = input.pathname;
       const req = new Request(url, input.req);
-      const params = getPathMapping(pathConfigItem.path, input.pathname) ?? {};
-      return pathConfigItem.handler(req, { params });
+      const params = getPathMapping(pathConfig.path, input.pathname) ?? {};
+      return pathConfig.handler(req, { params });
     }
 
     const headers = Object.fromEntries(input.req.headers.entries());
+
+    // --------------------------------------------------------------------------
+    // Component Requests (for slices and partial hydration)
+    // --------------------------------------------------------------------------
+    
     if (input.type === 'component') {
       const sliceId = decodeSliceId(input.rscPath ?? '');
+      
       if (sliceId !== null) {
-        const sliceConfig = await getMyConfig().then((myConfig) =>
-          myConfig.configs.find(
-            (item): item is typeof item & { type: 'slice' } =>
-              item.type === 'slice' && item.id === sliceId,
-          ),
+        const { configs } = await getMyConfig();
+        const sliceConfig = configs.find(
+          (item): item is SliceConfig =>
+            item.type === 'slice' && item.id === sliceId,
         );
+
         if (!sliceConfig) {
           return null;
         }
+
         const sliceElement = await getSliceElement(
           sliceConfig,
           getCachedElement,
           setCachedElement,
         );
-        return renderRsc({
+
+        return context.renderRsc!({
           [SLICE_SLOT_ID_PREFIX + sliceId]: sliceElement,
           ...(sliceConfig.isStatic
-            ? {
-                [IS_STATIC_ID + ':' + SLICE_SLOT_ID_PREFIX + sliceId]: true,
-              }
+            ? { [IS_STATIC_ID + ':' + SLICE_SLOT_ID_PREFIX + sliceId]: true }
             : {}),
         });
       }
-      const entries = await getEntriesForRoute(
-        input.rscPath ?? '',
-        input.rscParams,
-        headers,
-        getCachedElement,
-        setCachedElement,
-      );
+
+      const entries = await getEntriesForRoute(input.rscPath ?? '', input.rscParams, headers);
       if (!entries) {
         return null;
       }
-      return renderRsc(entries);
+      return context.renderRsc!(entries);
     }
 
+    // --------------------------------------------------------------------------
+    // Function Calls (server actions)
+    // --------------------------------------------------------------------------
+    
     if (input.type === 'function') {
-      let elementsPromise: Promise<Record<string, unknown>> = Promise.resolve({});
+      let elementsPromise = Promise.resolve({});
       let rendered = false;
+
       const rerender = (rscPath: string, rscParams?: unknown) => {
         if (rendered) {
           throw new Error('already rendered');
         }
         elementsPromise = Promise.all([
           elementsPromise,
-          getEntriesForRoute(
-            rscPath,
-            rscParams,
-            headers,
-            getCachedElement,
-            setCachedElement,
-          ),
+          getEntriesForRoute(rscPath, rscParams, headers),
         ]).then(([oldElements, newElements]) => {
           if (newElements === null) {
             console.warn('getEntries returned null');
           }
-          return {
-            ...oldElements,
-            ...newElements,
-          };
+          return { ...oldElements, ...newElements };
         });
       };
-      setRerender(rerender);
+
+      setContextValue(RERENDER_KEY, rerender);
+
       try {
         const value = await (input.fn ?? (() => {}))(...(input.args ?? []));
-        return renderRsc!({ ...(await elementsPromise), _value: value });
+        return context.renderRsc!({ ...(await elementsPromise), _value: value });
       } catch (e) {
         const info = getErrorInfo(e);
+        
         if (info?.location) {
           const routePath = pathnameToRoutePath(info.location);
           const rscPath = encodeRoutePath(routePath);
-          const entries = await getEntriesForRoute(
-            rscPath,
-            undefined,
-            headers,
-            getCachedElement,
-            setCachedElement,
-          );
+          const entries = await getEntriesForRoute(rscPath, undefined, headers);
           if (!entries) {
             unstable_notFound();
           }
-          return renderRsc(entries);
+          return context.renderRsc!(entries);
         }
         throw e;
       } finally {
@@ -509,63 +581,109 @@ export function unstable_defineRouter(fns: {
       }
     }
 
+    // --------------------------------------------------------------------------
+    // Action/Custom Requests (form submissions, etc.)
+    // --------------------------------------------------------------------------
+    
     if (input.type === 'action' || input.type === 'custom') {
-      const renderIt = async (
+      const renderPage = async (
         pathname: string,
         query: string,
-        httpstatus = 200,
-      ) => {
+        status = 200,
+      ): Promise<Response | null> => {
         const routePath = pathnameToRoutePath(pathname);
         const rscPath = encodeRoutePath(routePath);
         const rscParams = new URLSearchParams({ query });
-        const entries = await getEntriesForRoute(
-          rscPath,
-          rscParams,
-          headers,
-          getCachedElement,
-          setCachedElement,
-        );
+
+        const entries = await getEntriesForRoute(rscPath, rscParams, headers);
         if (!entries) {
           return null;
         }
+
         const html = (
           <INTERNAL_ServerRouter
             route={{ path: routePath, query, hash: '' }}
-            httpstatus={httpstatus}
+            httpstatus={status}
           />
         );
+
         const formState =
           input.type === 'action' ? await (input.fn ?? (() => {}))() : undefined;
         const nonce = getNonce();
-        return renderHtml!(await renderRsc!(entries), html, {
-          rscPath,
-          formState,
-          status: httpstatus,
-          ...(nonce ? { nonce } : {}),
-        });
+
+        return context.renderHtml!(
+          await context.renderRsc!(entries),
+          html,
+          { rscPath, formState, status, ...(nonce ? { nonce } : {}) },
+        );
       };
 
       const method = input.req.method;
       if (method === 'GET') {
         const url = new URL(input.req.url);
-        return renderIt(url.pathname, url.search);
+        return renderPage(url.pathname, url.search);
       }
 
       const contentType = input.req.headers.get('content-type') || '';
+      
       if (contentType === 'application/x-www-form-urlencoded') {
-        const formData = await input.req.formData();
+        await input.req.formData();
         const url = new URL(input.req.url);
-        return renderIt(url.pathname, url.search, 200);
+        return renderPage(url.pathname, url.search);
       }
 
       const url = new URL(input.req.url);
-      return renderIt(url.pathname, url.search, 200);
+      return renderPage(url.pathname, url.search);
+    }
+
+    // --------------------------------------------------------------------------
+    // HTML Navigation - Main page render
+    // --------------------------------------------------------------------------
+    
+    // If no route found, try 404
+    if (!pathConfig && input.type === 'html') {
+      const { configs, has404 } = await getMyConfig();
+      
+      // Try to find a 404 page
+      if (has404) {
+        const notFoundConfig = configs.find(
+          (item): item is RouteConfig =>
+            item.type === 'route' &&
+            item.path.length === 1 &&
+            item.path[0]!.type === 'literal' &&
+            item.path[0]!.name === '404',
+        );
+        
+        if (notFoundConfig) {
+          const rscPath = encodeRoutePath('/404');
+          const entries = await getEntriesForRoute(rscPath, new URLSearchParams(), headers);
+          if (entries) {
+            const html = (
+              <INTERNAL_ServerRouter
+                route={{ path: '/404', query: '', hash: '' }}
+                httpstatus={404}
+              />
+            );
+            return context.renderHtml!(
+              await context.renderRsc!(entries),
+              html,
+              { rscPath, status: 404 },
+            );
+          }
+        }
+      }
+      
+      // Return plain 404 if no 404 page configured
+      return new Response('Not Found', { status: 404 });
+    }
+    
+    // RSC requests without matching route
+    if (!pathConfig && input.type !== 'html') {
+      return null;
     }
 
     return undefined;
   };
 
-  return defineHandlers({
-    handleRequest,
-  });
+  return defineHandlers({ handleRequest });
 }

@@ -53,7 +53,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
     });
 
     it('unstable_constants has correct values', () => {
-      expect(unstable_constants.DIST_PUBLIC).toBe('_rsc');
+      expect(unstable_constants.DIST_PUBLIC).toBe('public');
       expect(unstable_constants.ENTRY_JSON).toBe('entry.json');
       expect(unstable_constants.SERVER_BUNDLE).toBe('bundle.js');
       expect(unstable_constants.RSC_PATH).toBe('_rsc');

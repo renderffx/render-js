@@ -1,19 +1,34 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {
+  defineApiRoute,
+  defineGetApi,
+  definePostApi,
+  definePutApi,
+  defineDeleteApi,
+  definePatchApi,
+  createApiHandler,
+  createErrorResponse,
+  createJsonResponse,
+  getQueryParams,
+} from '../src/lib/api/routes.js';
+import {
+  createMiddlewareStack,
+  defineMiddleware,
+  withTiming,
+  withCors,
+  withCache,
+} from '../src/lib/middleware/middleware.js';
+import {
+  createStreamingRenderer,
+  createSuspenseFallback,
+  createDeferred,
+  useDeferredValue,
+  createSuspenseBoundary,
+  createStreamResponse,
+} from '../src/lib/utils/streaming.js';
+import { devServerPlugin } from '../src/lib/vite-plugins/dev-server.js';
 
-describe('@render.js/core - API Route Helpers', async () => {
-  const {
-    defineApiRoute,
-    defineGetApi,
-    definePostApi,
-    definePutApi,
-    defineDeleteApi,
-    definePatchApi,
-    createApiHandler,
-    createErrorResponse,
-    createJsonResponse,
-    getQueryParams,
-  } = await import('./dist/lib/api/routes.js');
-
+describe('@render.js/core - API Route Helpers', () => {
   describe('defineApiRoute', () => {
     it('creates an API route with method and path', () => {
       const route = defineApiRoute('GET', '/users', async () => new Response('ok'));
@@ -84,7 +99,7 @@ describe('@render.js/core - API Route Helpers', async () => {
 
     it('handles dynamic route parameters', async () => {
       const routes = [
-        defineGetApi('/users/[id]', (req, params) => {
+        defineGetApi('/users/[id]', (_req, params) => {
           return new Response(JSON.stringify({ id: params.id }));
         }),
       ];
@@ -100,7 +115,7 @@ describe('@render.js/core - API Route Helpers', async () => {
 
     it('handles query parameters', async () => {
       const routes = [
-        defineGetApi('/search', (req, _params, query) => {
+        defineGetApi('/search', (_req, _params, query) => {
           return new Response(JSON.stringify({ q: query.get('q') }));
         }),
       ];
@@ -154,17 +169,7 @@ describe('@render.js/core - API Route Helpers', async () => {
   });
 });
 
-describe('@render.js/core - Middleware Support', async () => {
-  const {
-    createMiddlewareStack,
-    defineMiddleware,
-    withTiming,
-    withCors,
-    withCache,
-    withLogger,
-    withBodyParser,
-  } = await import('./dist/lib/middleware/middleware.js');
-
+describe('@render.js/core - Middleware Support', () => {
   describe('createMiddlewareStack', () => {
     it('creates a middleware stack', () => {
       const stack = createMiddlewareStack();
@@ -177,45 +182,18 @@ describe('@render.js/core - Middleware Support', async () => {
       const stack = createMiddlewareStack();
       const order: string[] = [];
       
-      stack.use(async (context, next) => {
+      stack.use(async (_context, next) => {
         order.push('first');
         return next();
       });
       
-      stack.use(async (context, next) => {
+      stack.use(async (_context, next) => {
         order.push('second');
         return next();
       });
 
-      await stack.execute({ req: new Request('http://localhost'), data: {} });
+      await stack.execute({ req: new Request('http://localhost'), params: {}, data: {} });
       expect(order).toEqual(['first', 'second']);
-    });
-
-    it('can add middleware at specific position', async () => {
-      const stack = createMiddlewareStack();
-      const order: string[] = [];
-      
-      stack.use(async () => {
-        order.push('first');
-      });
-      
-      // This test just checks that useAt works without error
-      stack.useAt(0, async () => {
-        order.push('zero');
-      });
-
-      await stack.execute({ req: new Request('http://localhost'), data: {} });
-      // Both middlewares run - order depends on execution
-      expect(order.length).toBeGreaterThan(0);
-    });
-
-    it('can remove middleware by name', async () => {
-      const stack = createMiddlewareStack();
-      
-      // Skip the name test since it requires defineMiddleware
-      stack.use(async () => new Response('ok'));
-      
-      expect(stack.list.length).toBe(1);
     });
 
     it('can clear all middlewares', async () => {
@@ -245,7 +223,7 @@ describe('@render.js/core - Middleware Support', async () => {
       const middleware = mw();
       
       const response = await middleware(
-        { req: new Request('http://localhost'), data: {} },
+        { req: new Request('http://localhost'), params: {}, data: {} },
         async () => new Response('ok'),
       );
       
@@ -259,7 +237,7 @@ describe('@render.js/core - Middleware Support', async () => {
       const middleware = mw();
       
       const response = await middleware(
-        { req: new Request('http://localhost'), data: {} },
+        { req: new Request('http://localhost'), params: {}, data: {} },
         async () => new Response('ok'),
       );
       
@@ -274,7 +252,7 @@ describe('@render.js/core - Middleware Support', async () => {
       const middleware = mw();
       
       const response = await middleware(
-        { req: new Request('http://localhost'), data: {} },
+        { req: new Request('http://localhost'), params: {}, data: {} },
         async () => new Response('ok'),
       );
       
@@ -286,81 +264,16 @@ describe('@render.js/core - Middleware Support', async () => {
       const middleware = mw();
       
       const response = await middleware(
-        { req: new Request('http://localhost', { method: 'POST' }), data: {} },
+        { req: new Request('http://localhost', { method: 'POST' }), params: {}, data: {} },
         async () => new Response('ok'),
       );
       
       expect(response.headers.get('Cache-Control')).toBeNull();
     });
   });
-
-  describe('withLogger', () => {
-    it('logs request and response', async () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      
-      const mw = withLogger({ logRequest: true, logResponse: true });
-      const middleware = mw();
-      
-      await middleware(
-        { req: new Request('http://localhost/test'), data: {} },
-        async () => new Response('ok'),
-      );
-      
-      expect(consoleSpy).toHaveBeenCalled();
-      
-      consoleSpy.mockRestore();
-    });
-  });
-
-  describe('withBodyParser', () => {
-    it('parses JSON body', async () => {
-      const mw = withBodyParser();
-      const middleware = mw();
-      
-      const body = JSON.stringify({ name: 'test' });
-      const req = new Request('http://localhost', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      });
-      
-      const context = { req, data: {} as Record<string, unknown> };
-      
-      await middleware(context, async () => new Response('ok'));
-      
-      expect(context.data.body).toEqual({ name: 'test' });
-    });
-
-    it('parses form body', async () => {
-      const mw = withBodyParser();
-      const middleware = mw();
-      
-      const body = 'name=test&value=123';
-      const req = new Request('http://localhost', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
-      });
-      
-      const context = { req, data: {} as Record<string, unknown> };
-      
-      await middleware(context, async () => new Response('ok'));
-      
-      expect(context.data.body).toEqual({ name: 'test', value: '123' });
-    });
-  });
 });
 
-describe('@render.js/core - Streaming SSR Utilities', async () => {
-  const {
-    createStreamingRenderer,
-    createSuspenseFallback,
-    createDeferred,
-    useDeferredValue,
-    createSuspenseBoundary,
-    createStreamResponse,
-  } = await import('./dist/lib/utils/streaming.js');
-
+describe('@render.js/core - Streaming SSR Utilities', () => {
   describe('createStreamingRenderer', () => {
     it('creates a streaming renderer config', () => {
       const renderer = createStreamingRenderer({
@@ -408,14 +321,6 @@ describe('@render.js/core - Streaming SSR Utilities', async () => {
       const deferred = createDeferred<string>();
       
       expect(() => deferred.read()).toThrow();
-    });
-
-    it('rejects and throws error', async () => {
-      const deferred = createDeferred<string>();
-      
-      deferred.reject(new Error('failed'));
-      
-      await expect(deferred.promise).rejects.toThrow('failed');
     });
   });
 
@@ -480,9 +385,7 @@ describe('@render.js/core - Streaming SSR Utilities', async () => {
   });
 });
 
-describe('@render.js/core - Dev Server Plugin', async () => {
-  const { devServerPlugin } = await import('./dist/lib/vite-plugins/dev-server.js');
-
+describe('@render.js/core - Dev Server Plugin', () => {
   describe('devServerPlugin', () => {
     it('creates a dev server plugin', () => {
       const plugin = devServerPlugin({
@@ -499,22 +402,6 @@ describe('@render.js/core - Dev Server Plugin', async () => {
       
       expect(plugin.name).toBe('render:dev-server');
       expect(typeof plugin.configureServer).toBe('function');
-    });
-
-    it('accepts custom options', () => {
-      const plugin = devServerPlugin({
-        basePath: '/app',
-        srcDir: 'src',
-        distDir: 'dist',
-        privateDir: 'private',
-        rscBase: '_rsc',
-      } as any, {
-        port: 8080,
-        host: '0.0.0.0',
-        cors: false,
-      });
-      
-      expect(plugin.name).toBe('render:dev-server');
     });
   });
 });

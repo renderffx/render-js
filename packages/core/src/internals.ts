@@ -22,4 +22,25 @@ export const unstable_honoMiddleware = {
   },
 };
 
+export const unstable_createNativeMiddleware = {
+  contextMiddleware: () => async (req: Request, next: () => Promise<Response>) => {
+    await unstable_runWithContext(req, async () => {
+      await next();
+    });
+  },
+  rscMiddleware: ({ processRequest }: { processRequest: (req: Request) => Promise<Response> }) => async (req: Request) => {
+    const response = await processRequest(req);
+    return response;
+  },
+  middlewareRunner: (middlewareModules: Record<string, () => Promise<any>>) => async (req: Request, next: () => Promise<Response>) => {
+    for (const key in middlewareModules) {
+      const mod = await middlewareModules[key]();
+      if (mod.default) {
+        await mod.default(req, next);
+      }
+    }
+    await next();
+  },
+};
+
 export { unstable_constants };

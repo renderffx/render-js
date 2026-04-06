@@ -9,24 +9,82 @@ type ActionState<T> = {
   isPending: boolean;
 };
 
-const ActionContext = createContext<{
-  submitAction: <T>(action: string, data: unknown) => Promise<T>;
+interface ActionContextValue {
+  submitAction: <T>(action: string, data: unknown, options?: ActionSubmitOptions) => Promise<T>;
   actionState: Record<string, ActionState<unknown>>;
-} | null>(null);
+  getCsrfToken: () => string | null;
+}
+
+interface ActionSubmitOptions {
+  skipCsrf?: boolean;
+}
+
+const ActionContext = createContext<ActionContextValue | null>(null);
+
+function generateCsrfToken(): string {
+  const array = new Uint8Array(32);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(array);
+  } else {
+    for (let i = 0; i < 32; i++) {
+      array[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+const CSRF_TOKEN_KEY = '__rsc_csrf_token';
+
+function validateCsrfOrigin(requestOrigin: string | null): boolean {
+  if (!requestOrigin) return true;
+  const allowedOrigins = typeof window !== 'undefined' 
+    ? [window.location.origin] 
+    : [];
+  return allowedOrigins.includes(requestOrigin);
+}
 
 export function ActionProvider({ children }: { children: ReactNode }) {
   const [actionState, setActionState] = useState<Record<string, ActionState<unknown>>>({});
+  const csrfTokenRef = useRef<string | null>(null);
 
-  const submitAction = useCallback(async <T,>(action: string, data: unknown): Promise<T> => {
+  const getCsrfToken = useCallback((): string | null => {
+    if (typeof window === 'undefined') return null;
+    if (!csrfTokenRef.current) {
+      const meta = document.querySelector('meta[name="csrf-token"]');
+      csrfTokenRef.current = meta?.getAttribute('content') ?? null;
+    }
+    return csrfTokenRef.current;
+  }, []);
+
+  const submitAction = useCallback(async <T,>(
+    action: string, 
+    data: unknown, 
+    options: ActionSubmitOptions = {}
+  ): Promise<T> => {
+    const { skipCsrf = false } = options;
+    
     setActionState(prev => ({
       ...prev,
       [action]: { ...prev[action], isPending: true, error: null }
     }));
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      
+      if (!skipCsrf) {
+        const csrfToken = getCsrfToken();
+        if (csrfToken) {
+          headers['X-CSRF-Token'] = csrfToken;
+        }
+        const origin = typeof window !== 'undefined' ? window.location.origin : null;
+        if (origin) {
+          headers['Origin'] = origin;
+        }
+      }
+
       const response = await fetch(action, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(data),
       });
 
@@ -52,10 +110,10 @@ export function ActionProvider({ children }: { children: ReactNode }) {
       
       throw error;
     }
-  }, []);
+  }, [getCsrfToken]);
 
   return (
-    <ActionContext.Provider value={{ submitAction, actionState }}>
+    <ActionContext.Provider value={{ submitAction, actionState, getCsrfToken }}>
       {children}
     </ActionContext.Provider>
   );
@@ -66,6 +124,7 @@ export function useActionState<T>(
   initialState: T | null = null
 ): [T | null, (data: unknown) => Promise<T>, boolean, string | null] {
   const context = React.useContext(ActionContext);
+  const getCsrfToken = context?.getCsrfToken ?? (() => null);
   
   const [localState, setLocalState] = useState<T | null>(initialState);
   const [isPending, setIsPending] = useState(false);
@@ -76,9 +135,19 @@ export function useActionState<T>(
     setError(null);
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+      const origin = typeof window !== 'undefined' ? window.location.origin : null;
+      if (origin) {
+        headers['Origin'] = origin;
+      }
+
       const response = await fetch(action, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(data),
       });
 
@@ -96,7 +165,7 @@ export function useActionState<T>(
     } finally {
       setIsPending(false);
     }
-  }, [action]);
+  }, [action, getCsrfToken]);
 
   return [localState, submit, isPending, error];
 }
@@ -123,6 +192,12 @@ export const Form: FC<FormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const csrfTokenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    csrfTokenRef.current = meta?.getAttribute('content') ?? null;
+  }, []);
 
   const handleSubmit = useCallback(async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -148,9 +223,19 @@ export const Form: FC<FormProps> = ({
         }
       });
 
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const csrfToken = csrfTokenRef.current;
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+      const origin = typeof window !== 'undefined' ? window.location.origin : null;
+      if (origin) {
+        headers['Origin'] = origin;
+      }
+
       const response = await fetch(action, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(data),
       });
 
@@ -187,14 +272,30 @@ export function useSubmit<TFormData extends Record<string, unknown>>(
   } = {}
 ) {
   const [isPending, setIsPending] = useState(false);
+  const csrfTokenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    csrfTokenRef.current = meta?.getAttribute('content') ?? null;
+  }, []);
 
   const submit = useCallback(async (data: TFormData): Promise<void> => {
     setIsPending(true);
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const csrfToken = csrfTokenRef.current;
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+      const origin = typeof window !== 'undefined' ? window.location.origin : null;
+      if (origin) {
+        headers['Origin'] = origin;
+      }
+
       const response = await fetch(action, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(data),
       });
 

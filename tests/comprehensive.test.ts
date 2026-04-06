@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
+const distBase = '../packages/core/dist/';
+
 describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
 
   describe('1. config.ts', async () => {
-    const { defineConfig } = await import('./dist/config.js');
+    const { defineConfig } = await import(distBase + 'config.js');
     
     it('defineConfig returns config object', () => {
       const config = defineConfig({
@@ -38,7 +40,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
       BUILD_METADATA_FILE,
       RSC_CONTENT_TYPE,
       HTML_CONTENT_TYPE,
-    } = await import('./dist/lib/constants.js');
+    } = await import(distBase + 'lib/constants.js');
 
     it('exports all constants', () => {
       expect(EXTENSIONS).toContain('.tsx');
@@ -53,7 +55,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
     });
 
     it('unstable_constants has correct values', () => {
-      expect(unstable_constants.DIST_PUBLIC).toBe('_rsc');
+      expect(unstable_constants.DIST_PUBLIC).toBe('public');
       expect(unstable_constants.ENTRY_JSON).toBe('entry.json');
       expect(unstable_constants.SERVER_BUNDLE).toBe('bundle.js');
       expect(unstable_constants.RSC_PATH).toBe('_rsc');
@@ -70,7 +72,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
     const { 
       unstable_runWithContext, 
       unstable_getContext, 
-    } = await import('./dist/lib/context.js');
+    } = await import(distBase + 'lib/context.js');
 
     it('runWithContext runs callback with context', async () => {
       const result = await unstable_runWithContext({ userId: '123' }, () => {
@@ -88,7 +90,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('4. lib/types.ts', async () => {
-    const types = await import('./dist/lib/types.js');
+    const types = await import(distBase + 'lib/types.js');
     
     it('exports type definitions', () => {
       expect(types).toBeDefined();
@@ -110,7 +112,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
       getPathMapping,
       removeBase,
       addBase,
-    } = await import('./dist/lib/utils/path.js');
+    } = await import(distBase + 'lib/utils/path.js');
 
     describe('path encoding', () => {
       it('encodeFilePathToAbsolute handles relative paths', () => {
@@ -267,7 +269,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
       decodeRscPath, 
       encodeFuncId, 
       decodeFuncId,
-    } = await import('./dist/lib/utils/rsc-path.js');
+    } = await import(distBase + 'lib/utils/rsc-path.js');
 
     describe('encodeRscPath / decodeRscPath', () => {
       it('encodes and decodes basic paths', () => {
@@ -318,7 +320,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
       batchReadableStream,
       produceMultiplexedStream,
       consumeMultiplexedStream,
-    } = await import('./dist/lib/utils/stream.js');
+    } = await import(distBase + 'lib/utils/stream.js');
 
     describe('stringToStream', () => {
       it('converts string to ReadableStream', async () => {
@@ -371,7 +373,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('8. lib/utils/custom-errors.ts', async () => {
-    const { createCustomError, getErrorInfo } = await import('./dist/lib/utils/custom-errors.js');
+    const { createCustomError, getErrorInfo } = await import(distBase + 'lib/utils/custom-errors.js');
 
     describe('createCustomError', () => {
       it('creates error with message', () => {
@@ -420,7 +422,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('9. lib/utils/render.ts', async () => {
-    const render = await import('./dist/lib/utils/render.js');
+    const render = await import(distBase + 'lib/utils/render.js');
     
     it('has exports', () => {
       expect(render).toBeDefined();
@@ -439,7 +441,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
       IS_STATIC_ID,
       HAS404_ID,
       SKIP_HEADER,
-    } = await import('./dist/router/common.js');
+    } = await import(distBase + 'router/common.js');
 
     describe('pathnameToRoutePath', () => {
       it('converts rsc pathname to route path', () => {
@@ -522,7 +524,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('11. router/create-pages.ts', async () => {
-    const { createPages } = await import('./dist/router/server.js');
+    const { createPages } = await import(distBase + 'router/server.js');
 
     it('creates pages object', () => {
       const pages = createPages({
@@ -556,7 +558,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('12. router/fs-router.ts', async () => {
-    const { fsRouter } = await import('./dist/router/fs-router.js');
+    const { fsRouter } = await import(distBase + 'router/fs-router.js');
 
     it('fsRouter is a function', () => {
       expect(typeof fsRouter).toBe('function');
@@ -572,7 +574,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
       unstable_notFound,
       unstable_redirect,
       createPages,
-    } = await import('./dist/router/server.js');
+    } = await import(distBase + 'router/server.js');
 
     describe('unstable_notFound', () => {
       it('throws error', () => {
@@ -596,7 +598,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('14. router/client.tsx', async () => {
-    const router = await import('./dist/router/client.js');
+    const router = await import(distBase + 'router/client.js');
 
     it('exports Link component', () => {
       expect(router.Link).toBeDefined();
@@ -631,7 +633,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('15. router/define-router.tsx', async () => {
-    const router = await import('./dist/router/define-router.js');
+    const router = await import(distBase + 'router/define-router.js');
     
     it('has exports', () => {
       expect(router).toBeDefined();
@@ -639,7 +641,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('16. minimal/server.ts', async () => {
-    const { unstable_defineServerEntry, unstable_defineHandlers } = await import('./dist/minimal/server.js');
+    const { unstable_defineServerEntry, unstable_defineHandlers } = await import(distBase + 'minimal/server.js');
 
     it('unstable_defineServerEntry is exported', () => {
       expect(unstable_defineServerEntry).toBeDefined();
@@ -660,7 +662,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
       useRefetch,
       unstable_fetchRsc,
       unstable_prefetchRsc,
-    } = await import('./dist/minimal/client.js');
+    } = await import(distBase + 'minimal/client.js');
 
     it('exports Root component', () => {
       expect(Root).toBeDefined();
@@ -691,7 +693,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('18. adapters/vercel.ts', async () => {
-    const adapter = await import('./dist/adapters/vercel.js');
+    const adapter = await import(distBase + 'adapters/vercel.js');
 
     it('has exports', () => {
       expect(adapter).toBeDefined();
@@ -699,7 +701,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('19. vite-plugins/main.ts', async () => {
-    const { unstable_mainPlugin } = await import('./dist/lib/vite-plugins/index.js');
+    const { unstable_mainPlugin } = await import(distBase + 'lib/vite-plugins/index.js');
 
     it('mainPlugin is a function', () => {
       expect(unstable_mainPlugin).toBeDefined();
@@ -708,7 +710,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('20. vite-plugins/user-entries.ts', async () => {
-    const { unstable_userEntriesPlugin } = await import('./dist/lib/vite-plugins/index.js');
+    const { unstable_userEntriesPlugin } = await import(distBase + 'lib/vite-plugins/index.js');
 
     it('userEntriesPlugin is a function', () => {
       expect(unstable_userEntriesPlugin).toBeDefined();
@@ -717,7 +719,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('21. vite-plugins/allow-server.ts', async () => {
-    const { unstable_allowServerPlugin } = await import('./dist/lib/vite-plugins/index.js');
+    const { unstable_allowServerPlugin } = await import(distBase + 'lib/vite-plugins/index.js');
 
     it('allowServerPlugin is a function', () => {
       expect(unstable_allowServerPlugin).toBeDefined();
@@ -726,7 +728,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('22. vite-plugins/combined-plugins.ts', async () => {
-    const { unstable_combinedPlugins } = await import('./dist/lib/vite-plugins/index.js');
+    const { unstable_combinedPlugins } = await import(distBase + 'lib/vite-plugins/index.js');
 
     it('combinedPlugins is a function', () => {
       expect(unstable_combinedPlugins).toBeDefined();
@@ -735,7 +737,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('23. index.ts main exports', async () => {
-    const core = await import('./dist/index.js');
+    const core = await import(distBase + 'index.js');
 
     it('exports config', () => {
       expect(core.defineConfig).toBeDefined();
@@ -794,7 +796,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('24. internals.ts', async () => {
-    const internals = await import('./dist/internals.js');
+    const internals = await import(distBase + 'internals.js');
 
     it('has exports', () => {
       expect(internals).toBeDefined();
@@ -802,7 +804,7 @@ describe('@render.js/core - COMPREHENSIVE END-TO-END TESTS', () => {
   });
 
   describe('25. adapter-builders.ts', async () => {
-    const builders = await import('./dist/adapter-builders.js');
+    const builders = await import(distBase + 'adapter-builders.js');
 
     it('has exports', () => {
       expect(builders).toBeDefined();

@@ -17,10 +17,10 @@ async function waitForApp(port: number, timeout = 30000) {
   throw new Error(`Timeout waiting for app on port ${port}`);
 }
 
-test.describe('@render.js/core - E2E Tests', () => {
+  test.describe('@render.js/core - E2E Tests', () => {
   test.describe('Core Functionality', () => {
     test('should export all required functions', async () => {
-      const core = await import('../dist/index.js');
+      const core = await import('../../dist/index.js');
       
       expect(core.defineConfig).toBeDefined();
       expect(typeof core.defineConfig).toBe('function');
@@ -39,7 +39,7 @@ test.describe('@render.js/core - E2E Tests', () => {
     });
 
     test('should export all utilities', async () => {
-      const core = await import('../dist/index.js');
+      const core = await import('../../dist/index.js');
       
       expect(core.joinPath).toBeDefined();
       expect(core.parsePathWithSlug).toBeDefined();
@@ -60,7 +60,7 @@ test.describe('@render.js/core - E2E Tests', () => {
     });
 
     test('should export vite plugins', async () => {
-      const core = await import('../dist/index.js');
+      const core = await import('../../dist/index.js');
       
       expect(core.unstable_mainPlugin).toBeDefined();
       expect(core.unstable_userEntriesPlugin).toBeDefined();
@@ -71,7 +71,7 @@ test.describe('@render.js/core - E2E Tests', () => {
 
   test.describe('Path Utilities', () => {
     test('joinPath should work correctly', async () => {
-      const { joinPath } = await import('../dist/lib/utils/path.js');
+      const { joinPath } = await import('../../dist/lib/utils/path.js');
       
       expect(joinPath('/foo', 'bar')).toBe('/foo/bar');
       expect(joinPath('/foo/', '/bar')).toBe('/foo/bar');
@@ -79,7 +79,7 @@ test.describe('@render.js/core - E2E Tests', () => {
     });
 
     test('parsePathWithSlug should parse routes correctly', async () => {
-      const { parsePathWithSlug } = await import('../dist/lib/utils/path.js');
+      const { parsePathWithSlug } = await import('../../dist/lib/utils/path.js');
       
       const staticPath = parsePathWithSlug('/users');
       expect(staticPath).toEqual([{ type: 'literal', name: 'users' }]);
@@ -98,7 +98,7 @@ test.describe('@render.js/core - E2E Tests', () => {
     });
 
     test('removeBase and addBase should work correctly', async () => {
-      const { removeBase, addBase } = await import('../dist/lib/utils/path.js');
+      const { removeBase, addBase } = await import('../../dist/lib/utils/path.js');
       
       expect(removeBase('/app/users', '/app')).toBe('/users');
       expect(addBase('/users', '/app')).toBe('/app/users');
@@ -107,7 +107,7 @@ test.describe('@render.js/core - E2E Tests', () => {
 
   test.describe('Router', () => {
     test('createPages should create pages object', async () => {
-      const { createPages } = await import('../dist/router/server.js');
+      const { createPages } = await import('../../dist/router/server.js');
       
       const pages = createPages({
         '/': { children: ['./src/pages/index.tsx'] },
@@ -121,13 +121,13 @@ test.describe('@render.js/core - E2E Tests', () => {
     });
 
     test('unstable_notFound should throw', async () => {
-      const { unstable_notFound } = await import('../dist/router/server.js');
+      const { unstable_notFound } = await import('../../dist/router/server.js');
       
       expect(() => unstable_notFound()).toThrow();
     });
 
     test('unstable_redirect should throw with location', async () => {
-      const { unstable_redirect } = await import('../dist/router/server.js');
+      const { unstable_redirect } = await import('../../dist/router/server.js');
       
       expect(() => unstable_redirect('/new-location')).toThrow();
       expect(() => unstable_redirect('/new-location', 307)).toThrow();
@@ -136,7 +136,7 @@ test.describe('@render.js/core - E2E Tests', () => {
 
   test.describe('Context', () => {
     test('runWithContext should provide context', async () => {
-      const { unstable_runWithContext, unstable_getContext } = await import('../dist/lib/context.js');
+      const { unstable_runWithContext, unstable_getContext } = await import('../../dist/lib/context.js');
       
       const result = await unstable_runWithContext(
         { userId: '123', token: 'abc' },
@@ -147,7 +147,7 @@ test.describe('@render.js/core - E2E Tests', () => {
     });
 
     test('getContext should throw outside context', async () => {
-      const { unstable_getContext } = await import('../dist/lib/context.js');
+      const { unstable_getContext } = await import('../../dist/lib/context.js');
       
       expect(() => unstable_getContext()).toThrow();
     });
@@ -155,7 +155,7 @@ test.describe('@render.js/core - E2E Tests', () => {
 
   test.describe('Error Handling', () => {
     test('createCustomError should create error with info', async () => {
-      const { createCustomError } = await import('../dist/lib/utils/custom-errors.js');
+      const { createCustomError } = await import('../../dist/lib/utils/custom-errors.js');
       
       const error = createCustomError('Not Found', { status: 404 });
       expect(error.message).toBe('Not Found');
@@ -167,7 +167,7 @@ test.describe('@render.js/core - E2E Tests', () => {
     });
 
     test('getErrorInfo should extract error info', async () => {
-      const { createCustomError, getErrorInfo } = await import('../dist/lib/utils/custom-errors.js');
+      const { createCustomError, getErrorInfo } = await import('../../dist/lib/utils/custom-errors.js');
       
       const error = createCustomError('Test Error', { status: 500 });
       const info = getErrorInfo(error);
@@ -178,7 +178,7 @@ test.describe('@render.js/core - E2E Tests', () => {
     });
 
     test('getErrorInfo should return null for non-custom errors', async () => {
-      const { getErrorInfo } = await import('../dist/lib/utils/custom-errors.js');
+      const { getErrorInfo } = await import('../../dist/lib/utils/custom-errors.js');
       
       expect(getErrorInfo('string')).toBeNull();
       expect(getErrorInfo(null)).toBeNull();
@@ -189,7 +189,7 @@ test.describe('@render.js/core - E2E Tests', () => {
 
   test.describe('Stream Utilities', () => {
     test('stringToStream should convert string to stream', async () => {
-      const { stringToStream } = await import('../dist/lib/utils/stream.js');
+      const { stringToStream } = await import('../../dist/lib/utils/stream.js');
       
       const stream = stringToStream('Hello World');
       const reader = stream.getReader();
@@ -201,7 +201,7 @@ test.describe('@render.js/core - E2E Tests', () => {
     });
 
     test('streamToBase64 and base64ToStream should roundtrip', async () => {
-      const { stringToStream, streamToBase64, base64ToStream } = await import('../dist/lib/utils/stream.js');
+      const { stringToStream, streamToBase64, base64ToStream } = await import('../../dist/lib/utils/stream.js');
       
       const original = 'Test content 123!@#';
       const stream = stringToStream(original);
@@ -218,7 +218,7 @@ test.describe('@render.js/core - E2E Tests', () => {
 
   test.describe('Config', () => {
     test('defineConfig should return config object', async () => {
-      const { defineConfig } = await import('../dist/config.js');
+      const { defineConfig } = await import('../../dist/config.js');
       
       const config = defineConfig({
         basePath: '/app',
@@ -234,7 +234,7 @@ test.describe('@render.js/core - E2E Tests', () => {
     });
 
     test('defineConfig should have defaults', async () => {
-      const { defineConfig } = await import('../dist/config.js');
+      const { defineConfig } = await import('../../dist/config.js');
       
       const config = defineConfig({});
       

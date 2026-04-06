@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500">
+  <rect width="900" height="500" fill="#0a0a0a"/>
+  
+  <text x="450" y="30" text-anchor="middle" font-family="monospace" font-size="20" fill="#fff">render.js</text>
+  <text x="450" y="48" text-anchor="middle" font-family="monospace" font-size="11" fill="#666">how it works</text>
+  
+  <!-- REQUEST FLOW -->
+  <rect x="50" y="65" width="800" height="70" rx="4" fill="#111" stroke="#222"/>
+  <text x="70" y="82" font-family="monospace" font-size="10" fill="#fff">request →</text>
+  
+  <rect x="120" y="70" width="70" height="22" rx="2" fill="#001" stroke="#3b82f6"/>
+  <text x="155" y="86" text-anchor="middle" font-family="monospace" font-size="9" fill="#3b82f6">HTTP</text>
+  
+  <text x="205" y="81" fill="#333">→</text>
+  
+  <rect x="220" y="70" width="70" height="22" rx="2" fill="#001" stroke="#f59e0b"/>
+  <text x="255" y="86" text-anchor="middle" font-family="monospace" font-size="9" fill="#f59e0b">Vite</text>
+  
+  <text x="305" y="81" fill="#333">→</text>
+  
+  <rect x="320" y="70" width="70" height="22" rx="2" fill="#001" stroke="#10b981"/>
+  <text x="355" y="86" text-anchor="middle" font-family="monospace" font-size="9" fill="#10b981">Route</text>
+  
+  <text x="405" y="81" fill="#333">→</text>
+  
+  <rect x="420" y="70" width="70" height="22" rx="2" fill="#001" stroke="#8b5cf6"/>
+  <text x="455" y="86" text-anchor="middle" font-family="monospace" font-size="9" fill="#8b5cf6">Render</text>
+  
+  <text x="505" y="81" fill="#333">→</text>
+  
+  <rect x="520" y="70" width="70" height="22" rx="2" fill="#001" stroke="#ec4899"/>
+  <text x="555" y="86" text-anchor="middle" font-family="monospace" font-size="9" fill="#ec4899">RSC</text>
+  
+  <text x="605" y="81" fill="#333">→</text>
+  
+  <rect x="620" y="70" width="70" height="22" rx="2" fill="#001" stroke="#f59e0b"/>
+  <text x="655" y="86" text-anchor="middle" font-family="monospace" font-size="9" fill="#f59e0b">Stream</text>
+  
+  <text x="705" y="81" fill="#333">→</text>
+  
+  <rect x="720" y="70" width="70" height="22" rx="2" fill="#001" stroke="#3b82f6"/>
+  <text x="755" y="86" text-anchor="middle" font-family="monospace" font-size="9" fill="#3b82f6">Response</text>
+  
+  <!-- FILES -->
+  <rect x="50" y="150" width="800" height="90" rx="4" fill="#111" stroke="#222"/>
+  
+  <!-- row 1 -->
+  <rect x="70" y="165" width="60" height="20" rx="2" fill="#0070f3"/>
+  <text x="100" y="180" text-anchor="middle" font-family="monospace" font-size="9" fill="#fff">index</text>
+  
+  <rect x="140" y="165" width="50" height="20" rx="2" fill="#222" stroke="#333"/>
+  <text x="165" y="180" text-anchor="middle" font-family="monospace" font-size="8" fill="#888">router</text>
+  
+  <rect x="200" y="165" width="50" height="20" rx="2" fill="#222" stroke="#333"/>
+  <text x="225" y="180" text-anchor="middle" font-family="monospace" font-size="8" fill="#888">minimal</text>
+  
+  <rect x="260" y="165" width="45" height="20" rx="2" fill="#222" stroke="#333"/>
+  <text x="282" y="180" text-anchor="middle" font-family="monospace" font-size="8" fill="#888">config</text>
+  
+  <rect x="315" y="165" width="55" height="20" rx="2" fill="#222" stroke="#333"/>
+  <text x="342" y="180" text-anchor="middle" font-family="monospace" font-size="8" fill="#888">adapters</text>
+  
+  <!-- lib -->
+  <rect x="70" y="195" width="770" height="35" rx="2" fill="#0a0a0a" stroke="#222"/>
+  <text x="85" y="212" font-family="monospace" font-size="9" fill="#fff">lib/</text>
+  <text x="115" y="212" font-family="monospace" font-size="8" fill="#888">api</text>
+  <text x="155" y="212" font-family="monospace" font-size="8" fill="#666">defineGetApi</text>
+  <text x="240" y="212" font-family="monospace" font-size="8" fill="#666">createApiHandler</text>
+  <text x="360" y="212" font-family="monospace" font-size="8" fill="#888">middleware</text>
+  <text x="440" y="212" font-family="monospace" font-size="8" fill="#666">withCors</text>
+  <text x="510" y="212" font-family="monospace" font-size="8" fill="#666">withLogger</text>
+  <text x="590" y="212" font-family="monospace" font-size="8" fill="#888">hooks</text>
+  <text x="645" y="212" font-family="monospace" font-size="8" fill="#666">useData</text>
+  <text x="705" y="212" font-family="monospace" font-size="8" fill="#666">useAction</text>
+  <text x="770" y="212" font-family="monospace" font-size="8" fill="#666">useRouter</text>
+  
+  <!-- lib row 2 -->
+  <text x="115" y="228" font-family="monospace" font-size="8" fill="#888">utils</text>
+  <text x="160" y="228" font-family="monospace" font-size="8" fill="#666">joinPath</text>
+  <text x="230" y="228" font-family="monospace" font-size="8" fill="#666">parsePathSlug</text>
+  <text x="330" y="228" font-family="monospace" font-size="8" fill="#666">encodeRscPath</text>
+  <text x="430" y="228" font-family="monospace" font-size="8" fill="#666">stringToStream</text>
+  <text x="540" y="228" font-family="monospace" font-size="8" fill="#888">vite-plugins</text>
+  <text x="640" y="228" font-family="monospace" font-size="8" fill="#666">mainPlugin</text>
+  <text x="730" y="228" font-family="monospace" font-size="8" fill="#666">devServer</text>
+  
+  <!-- PROTOCOLS -->
+  <rect x="50" y="255" width="800" height="35" rx="4" fill="#111" stroke="#222"/>
+  <text x="70" y="272" font-family="monospace" font-size="9" fill="#fff">_rsc/[id]?</text>
+  <text x="180" y="272" font-family="monospace" font-size="8" fill="#666">POST _rsc/action</text>
+  <text x="320" y="272" font-family="monospace" font-size="8" fill="#666">action://</text>
+  <text x="430" y="272" font-family="monospace" font-size="8" fill="#666">multipart/mixed</text>
+  <text x="560" y="272" font-family="monospace" font-size="8" fill="#666">text/x-component</text>
+  
+  <!-- TYPES -->
+  <rect x="50" y="305" width="800" height="35" rx="4" fill="#111" stroke="#222"/>
+  <text x="70" y="322" font-family="monospace" font-size="9" fill="#fff">api → pages/api/*.ts</text>
+  <text x="250" y="322" font-family="monospace" font-size="8" fill="#888">page → pages/*.tsx</text>
+  <text x="380" y="322" font-family="monospace" font-size="8" fill="#888">action → 'use server'</text>
+  <text x="530" y="322" font-family="monospace" font-size="8" fill="#888">data → useData()</text>
+  <text x="660" y="322" font-family="monospace" font-size="8" fill="#888">link → prefetch</text>
+  <text x="780" y="322" font-family="monospace" font-size="8" fill="#888">deploy → vercel</text>
+  
+  <!-- STATS -->
+  <rect x="50" y="355" width="800" height="40" rx="4" fill="#111" stroke="#222"/>
+  <rect x="70" y="365" width="70" height="18" rx="2" fill="#002" stroke="#10b981"/>
+  <text x="105" y="378" text-anchor="middle" font-family="monospace" font-size="8" fill="#10b981">204 tests</text>
+  
+  <rect x="150" y="365" width="70" height="18" rx="2" fill="#002" stroke="#10b981"/>
+  <text x="185" y="378" text-anchor="middle" font-family="monospace" font-size="8" fill="#10b981">131 e2e</text>
+  
+  <rect x="230" y="365" width="50" height="18" rx="2" fill="#002" stroke="#10b981"/>
+  <text x="255" y="378" text-anchor="middle" font-family="monospace" font-size="8" fill="#10b981">ts ✓</text>
+  
+  <rect x="290" y="365" width="50" height="18" rx="2" fill="#002" stroke="#10b981"/>
+  <text x="315" y="378" text-anchor="middle" font-family="monospace" font-size="8" fill="#10b981">build</text>
+  
+  <text x="380" y="378" font-family="monospace" font-size="9" fill="#888">70+ exports</text>
+  <text x="490" y="378" font-family="monospace" font-size="9" fill="#f59e0b">4M ops/s</text>
+  <text x="590" y="378" font-family="monospace" font-size="9" fill="#888">33 files</text>
+  
+  <!-- DEPS -->
+  <rect x="50" y="410" width="800" height="30" rx="4" fill="#111" stroke="#222"/>
+  <text x="70" y="430" font-family="monospace" font-size="9" fill="#666">deps:</text>
+  <text x="120" y="430" font-family="monospace" font-size="9" fill="#61dafb">react 19</text>
+  <text x="210" y="430" font-family="monospace" font-size="9" fill="#f59e0b">vite 6</text>
+  <text x="280" y="430" font-family="monospace" font-size="9" fill="#3178c6">ts 5</text>
+  <text x="350" y="430" font-family="monospace" font-size="9" fill="#888">@vitejs/plugin-rsc</text>
+  
+  <text x="600" y="430" font-family="monospace" font-size="9" fill="#fff">deploy:</text>
+  <text x="680" y="430" font-family="monospace" font-size="9" fill="#fff">vercel</text>
+  
+  <!-- FOOTER -->
+  <text x="450" y="470" text-anchor="middle" font-family="monospace" font-size="10" fill="#444">v0.1.0</text>
+</svg>

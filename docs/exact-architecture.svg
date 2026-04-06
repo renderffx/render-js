@@ -1,0 +1,215 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <rect width="900" height="600" fill="url(#grad1)"/>
+  
+  <!-- HEADER -->
+  <text x="450" y="25" text-anchor="middle" font-family="monospace" font-size="20" fill="#fff" font-weight="bold" filter="url(#glow)">render.js</text>
+  <text x="450" y="42" text-anchor="middle" font-family="monospace" font-size="11" fill="#888">how it works • architecture</text>
+  
+  <!-- === REQUEST FLOW === -->
+  <rect x="30" y="60" width="840" height="90" rx="8" fill="#0f0f23" stroke="#2a2a5a"/>
+  <text x="45" y="78" font-family="monospace" font-size="10" fill="#f5a623" font-weight="bold">REQUEST FLOW</text>
+  
+  <!-- arrows and boxes -->
+  <g transform="translate(50, 95)">
+    <rect x="0" y="0" width="90" height="45" rx="6" fill="#1a1a3a" stroke="#0070f3" stroke-width="2"/>
+    <text x="45" y="22" text-anchor="middle" font-family="monospace" font-size="10" fill="#fff">HTTP</text>
+    <text x="45" y="38" text-anchor="middle" font-family="monospace" font-size="8" fill="#666">Request</text>
+  </g>
+  
+  <text x="155" y="118" font-family="monospace" font-size="16" fill="#444">→</text>
+  
+  <g transform="translate(175, 95)">
+    <rect x="0" y="0" width="90" height="45" rx="6" fill="#1a1a3a" stroke="#8b5cf6" stroke-width="2"/>
+    <text x="45" y="22" text-anchor="middle" font-family="monospace" font-size="10" fill="#fff">Vite</text>
+    <text x="45" y="38" text-anchor="middle" font-family="monospace" font-size="8" fill="#666">Dev Server</text>
+  </g>
+  
+  <text x="280" y="118" font-family="monospace" font-size="16" fill="#444">→</text>
+  
+  <g transform="translate(300, 95)">
+    <rect x="0" y="0" width="90" height="45" rx="6" fill="#1a1a3a" stroke="#10b981" stroke-width="2"/>
+    <text x="45" y="22" text-anchor="middle" font-family="monospace" font-size="10" fill="#fff">Router</text>
+    <text x="45" y="38" text-anchor="middle" font-family="monospace" font-size="8" fill="#666">pages/*.tsx</text>
+  </g>
+  
+  <text x="405" y="118" font-family="monospace" font-size="16" fill="#444">→</text>
+  
+  <g transform="translate(425, 95)">
+    <rect x="0" y="0" width="90" height="45" rx="6" fill="#1a1a3a" stroke="#ec4899" stroke-width="2"/>
+    <text x="45" y="22" text-anchor="middle" font-family="monospace" font-size="10" fill="#fff">RSC</text>
+    <text x="45" y="38" text-anchor="middle" font-family="monospace" font-size="8" fill="#666">Server</text>
+  </g>
+  
+  <text x="530" y="118" font-family="monospace" font-size="16" fill="#444">→</text>
+  
+  <g transform="translate(550, 95)">
+    <rect x="0" y="0" width="90" height="45" rx="6" fill="#1a1a3a" stroke="#f59e0b" stroke-width="2"/>
+    <text x="45" y="22" text-anchor="middle" font-family="monospace" font-size="10" fill="#fff">Stream</text>
+    <text x="45" y="38" text-anchor="middle" font-family="monospace" font-size="8" fill="#666">Response</text>
+  </g>
+  
+  <text x="655" y="118" font-family="monospace" font-size="16" fill="#444">→</text>
+  
+  <g transform="translate(675, 95)">
+    <rect x="0" y="0" width="90" height="45" rx="6" fill="#1a1a3a" stroke="#10b981" stroke-width="2"/>
+    <text x="45" y="22" text-anchor="middle" font-family="monospace" font-size="10" fill="#fff">Client</text>
+    <text x="45" y="38" text-anchor="middle" font-family="monospace" font-size="8" fill="#666">Hydrate</text>
+  </g>
+  
+  <!-- === CORE FILES === -->
+  <rect x="30" y="165" width="400" height="130" rx="8" fill="#0f0f23" stroke="#2a2a5a"/>
+  <text x="45" y="185" font-family="monospace" font-size="10" fill="#61dafb" font-weight="bold">CORE FILES</text>
+  
+  <text x="50" y="208" font-family="monospace" font-size="9" fill="#888">src/</text>
+  <text x="80" y="208" font-family="monospace" font-size="9" fill="#fff">index.ts</text>
+  <text x="150" y="208" font-family="monospace" font-size="8" fill="#666">70+ exports</text>
+  
+  <text x="50" y="228" font-family="monospace" font-size="9" fill="#fff">config.ts</text>
+  <text x="120" y="228" font-family="monospace" font-size="8" fill="#666">defineConfig</text>
+  
+  <text x="50" y="248" font-family="monospace" font-size="9" fill="#fff">router/</text>
+  <text x="100" y="248" font-family="monospace" font-size="8" fill="#666">server.ts</text>
+  <text x="180" y="248" font-family="monospace" font-size="8" fill="#666">client.tsx</text>
+  <text x="260" y="248" font-family="monospace" font-size="8" fill="#666">common.ts</text>
+  
+  <text x="50" y="268" font-family="monospace" font-size="9" fill="#fff">minimal/</text>
+  <text x="105" y="268" font-family="monospace" font-size="8" fill="#666">server.ts</text>
+  <text x="180" y="268" font-family="monospace" font-size="8" fill="#666">client.tsx</text>
+  
+  <text x="50" y="288" font-family="monospace" font-size="9" fill="#fff">adapters/</text>
+  <text x="115" y="288" font-family="monospace" font-size="8" fill="#666">vercel.ts</text>
+  
+  <!-- === LIB === -->
+  <rect x="450" y="165" width="420" height="130" rx="8" fill="#0f0f23" stroke="#2a2a5a"/>
+  <text x="465" y="185" font-family="monospace" font-size="10" fill="#f5a623" font-weight="bold">lib/</text>
+  
+  <text x="470" y="208" font-family="monospace" font-size="9" fill="#fff">api/routes.ts</text>
+  <text x="580" y="208" font-family="monospace" font-size="8" fill="#666">defineGetApi</text>
+  
+  <text x="470" y="228" font-family="monospace" font-size="9" fill="#fff">middleware/</text>
+  <text x="550" y="228" font-family="monospace" font-size="8" fill="#666">withCors</text>
+  <text x="620" y="228" font-family="monospace" font-size="8" fill="#666">withLogger</text>
+  
+  <text x="470" y="248" font-family="monospace" font-size="9" fill="#fff">hooks/</text>
+  <text x="530" y="248" font-family="monospace" font-size="8" fill="#666">useData</text>
+  <text x="590" y="248" font-family="monospace" font-size="8" fill="#666">useAction</text>
+  <text x="660" y="248" font-family="monospace" font-size="8" fill="#666">useRouter</text>
+  
+  <text x="470" y="268" font-family="monospace" font-size="9" fill="#fff">utils/</text>
+  <text x="520" y="268" font-family="monospace" font-size="8" fill="#666">path.ts</text>
+  <text x="590" y="268" font-family="monospace" font-size="8" fill="#666">stream.ts</text>
+  <text x="670" y="268" font-family="monospace" font-size="8" fill="#666">rsc-path.ts</text>
+  
+  <text x="470" y="288" font-family="monospace" font-size="9" fill="#fff">vite-plugins/</text>
+  <text x="560" y="288" font-family="monospace" font-size="8" fill="#666">main.ts</text>
+  <text x="630" y="288" font-family="monospace" font-size="8" fill="#666">dev-server.ts</text>
+  
+  <!-- === PROTOCOLS === -->
+  <rect x="30" y="310" width="840" height="60" rx="8" fill="#0f0f23" stroke="#2a2a5a"/>
+  <text x="45" y="330" font-family="monospace" font-size="10" fill="#8b5cf6" font-weight="bold">RSC PROTOCOLS</text>
+  
+  <g transform="translate(50, 345)">
+    <rect x="0" y="0" width="120" height="30" rx="4" fill="#1a1a3a" stroke="#0070f3"/>
+    <text x="60" y="20" text-anchor="middle" font-family="monospace" font-size="10" fill="#fff">GET /_rsc/[id]?</text>
+  </g>
+  
+  <g transform="translate(185, 345)">
+    <rect x="0" y="0" width="120" height="30" rx="4" fill="#1a1a3a" stroke="#8b5cf6"/>
+    <text x="60" y="20" text-anchor="middle" font-family="monospace" font-size="10" fill="#fff">POST /_rsc</text>
+  </g>
+  
+  <g transform="translate(320, 345)">
+    <rect x="0" y="0" width="120" height="30" rx="4" fill="#1a1a3a" stroke="#10b981"/>
+    <text x="60" y="20" text-anchor="middle" font-family="monospace" font-size="10" fill="#fff">Server Actions</text>
+  </g>
+  
+  <g transform="translate(455, 345)">
+    <rect x="0" y="0" width="120" height="30" rx="4" fill="#1a1a3a" stroke="#ec4899"/>
+    <text x="60" y="20" text-anchor="middle" font-family="monospace" font-size="10" fill="#fff">Prefetch</text>
+  </g>
+  
+  <g transform="translate(590, 345)">
+    <rect x="0" y="0" width="120" height="30" rx="4" fill="#1a1a3a" stroke="#f59e0b"/>
+    <text x="60" y="20" text-anchor="middle" font-family="monospace" font-size="10" fill="#fff">text/x-component</text>
+  </g>
+  
+  <!-- === STATS === -->
+  <rect x="30" y="385" width="840" height="50" rx="8" fill="#0f0f23" stroke="#2a2a5a"/>
+  
+  <g transform="translate(50, 400)">
+    <rect x="0" y="0" width="70" height="30" rx="4" fill="#1a1a3a" stroke="#10b981"/>
+    <text x="35" y="20" text-anchor="middle" font-family="monospace" font-size="11" fill="#10b981">204 tests</text>
+  </g>
+  
+  <g transform="translate(130, 400)">
+    <rect x="0" y="0" width="70" height="30" rx="4" fill="#1a1a3a" stroke="#10b981"/>
+    <text x="35" y="20" text-anchor="middle" font-family="monospace" font-size="11" fill="#10b981">131 e2e</text>
+  </g>
+  
+  <g transform="translate(210, 400)">
+    <rect x="0" y="0" width="70" height="30" rx="4" fill="#1a1a3a" stroke="#10b981"/>
+    <text x="35" y="20" text-anchor="middle" font-family="monospace" font-size="11" fill="#10b981">build ✓</text>
+  </g>
+  
+  <text x="310" y="420" font-family="monospace" font-size="11" fill="#888">70+ exports</text>
+  <text x="420" y="420" font-family="monospace" font-size="11" fill="#f5a623">4M ops/sec</text>
+  <text x="530" y="420" font-family="monospace" font-size="11" fill="#888">zero deps</text>
+  
+  <!-- === DEPS === -->
+  <rect x="30" y="450" width="840" height="40" rx="8" fill="#0f0f23" stroke="#2a2a5a"/>
+  <text x="45" y="468" font-family="monospace" font-size="9" fill="#fff" font-weight="bold">deps:</text>
+  
+  <rect x="90" y="455" width="90" height="25" rx="4" fill="#1a1a3a" stroke="#61dafb"/>
+  <text x="135" y="472" text-anchor="middle" font-family="monospace" font-size="9" fill="#61dafb">react 19</text>
+  
+  <rect x="195" y="455" width="90" height="25" rx="4" fill="#1a1a3a" stroke="#f5a623"/>
+  <text x="240" y="472" text-anchor="middle" font-family="monospace" font-size="9" fill="#f5a623">vite 6</text>
+  
+  <rect x="300" y="455" width="90" height="25" rx="4" fill="#1a1a3a" stroke="#3178c6"/>
+  <text x="345" y="472" text-anchor="middle" font-family="monospace" font-size="9" fill="#3178c6">ts 5</text>
+  
+  <rect x="405" y="455" width="180" height="25" rx="4" fill="#1a1a3a" stroke="#8b5cf6"/>
+  <text x="495" y="472" text-anchor="middle" font-family="monospace" font-size="9" fill="#8b5cf6">@vitejs/plugin-rsc</text>
+  
+  <rect x="600" y="455" width="90" height="25" rx="4" fill="#1a1a3a" stroke="#10b981"/>
+  <text x="645" y="472" text-anchor="middle" font-family="monospace" font-size="9" fill="#10b981">magic-string</text>
+  
+  <!-- === DEPLOY === -->
+  <rect x="30" y="505" width="840" height="40" rx="8" fill="#0f0f23" stroke="#2a2a5a"/>
+  <text x="45" y="523" font-family="monospace" font-size="9" fill="#fff" font-weight="bold">deploy:</text>
+  
+  <rect x="100" y="510" width="70" height="25" rx="4" fill="#1a1a3a" stroke="#666"/>
+  <text x="135" y="527" text-anchor="middle" font-family="monospace" font-size="9" fill="#888">vercel</text>
+  
+  <rect x="185" y="510" width="70" height="25" rx="4" fill="#1a1a3a" stroke="#666"/>
+  <text x="220" y="527" text-anchor="middle" font-family="monospace" font-size="9" fill="#888">netlify</text>
+  
+  <rect x="270" y="510" width="70" height="25" rx="4" fill="#1a1a3a" stroke="#666"/>
+  <text x="305" y="527" text-anchor="middle" font-family="monospace" font-size="9" fill="#888">cloudflare</text>
+  
+  <rect x="355" y="510" width="70" height="25" rx="4" fill="#1a1a3a" stroke="#666"/>
+  <text x="390" y="527" text-anchor="middle" font-family="monospace" font-size="9" fill="#888">bun</text>
+  
+  <rect x="440" y="510" width="70" height="25" rx="4" fill="#1a1a3a" stroke="#666"/>
+  <text x="475" y="527" text-anchor="middle" font-family="monospace" font-size="9" fill="#888">node</text>
+  
+  <rect x="525" y="510" width="70" height="25" rx="4" fill="#1a1a3a" stroke="#666"/>
+  <text x="560" y="527" text-anchor="middle" font-family="monospace" font-size="9" fill="#888">deno</text>
+  
+  <!-- VERSION -->
+  <text x="850" y="580" text-anchor="end" font-family="monospace" font-size="10" fill="#444">v0.1.0</text>
+</svg>
